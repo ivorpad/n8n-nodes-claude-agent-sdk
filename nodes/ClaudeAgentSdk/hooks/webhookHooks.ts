@@ -16,6 +16,8 @@ import type {
 // eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import { spawn } from 'child_process';
 
+import { buildHookCommandEnv } from './hookEnv';
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -195,7 +197,9 @@ function runCommand(
 	timeoutMs: number,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
 	return new Promise((resolve) => {
-		const child = spawn(cmd, { shell: true, timeout: timeoutMs });
+		// SECURITY: pass an allowlisted env (see hookEnv.ts). The default would
+		// inherit all of n8n's secrets (encryption key, DB password, API keys).
+		const child = spawn(cmd, { shell: true, timeout: timeoutMs, env: buildHookCommandEnv(process.env) });
 		let stdout = '';
 		let stderr = '';
 
@@ -223,7 +227,9 @@ function buildCommandCallback(config: HookHandlerConfig): HookCallback {
 		if (config.mode === 'fireAndForget') {
 			// Spawn and don't wait — swallow errors
 			try {
-				const child = spawn(cmd, { shell: true, stdio: 'pipe' });
+				// SECURITY: same env containment as the sync path — the
+				// fire-and-forget spawn must not inherit n8n's secrets either.
+				const child = spawn(cmd, { shell: true, stdio: 'pipe', env: buildHookCommandEnv(process.env) });
 				child.stdin.write(payload);
 				child.stdin.end();
 				child.on('error', () => {});

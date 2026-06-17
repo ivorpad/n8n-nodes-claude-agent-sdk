@@ -7,6 +7,24 @@ export function buildWorkflowData(payload: IDataObject): INodeExecutionData[][] 
 	return [[{ json: payload }]];
 }
 
+/**
+ * Trust boundary for HITL companion resume.
+ *
+ * A fallback record exists precisely BECAUSE there is no persisted interaction
+ * for this requestId. The companion resume URL is delivered out-of-band (email,
+ * chat) and n8n's resume token signs only the execution + node path, NOT the
+ * query string — so `?sid=&afps=&fp=` are attacker-controllable by anyone who
+ * holds the URL. Folding them into the record would let a forged URL approve an
+ * arbitrary tool fingerprint or hijack a session on resume.
+ *
+ * These builders therefore carry ONLY non-authorizing fields (requestId,
+ * channel, and the question/message text needed to render a form). Every
+ * security-relevant resume field is left undefined — the safe-empty posture,
+ * matching the SDK node's record-only `fromRecord()`. Legitimate session /
+ * fingerprint restore across a restart requires the persisted Postgres pending
+ * store, not the query string. See buildChannelResumeFields below for the
+ * single record-only source of those fields.
+ */
 export function buildFallbackApprovalPendingRecord(args: {
 	requestId: string;
 	sessionId?: string;
@@ -20,9 +38,6 @@ export function buildFallbackApprovalPendingRecord(args: {
 		status: 'pending',
 		createdAt: Date.now(),
 		timeoutMs: 0,
-		sessionId: args.sessionId,
-		approvedFingerprints: args.approvedFingerprints,
-		fingerprint: args.fingerprint,
 		channel: args.channel,
 	};
 }
@@ -41,11 +56,32 @@ export function buildFallbackQuestionPendingRecord(args: {
 		status: 'pending',
 		createdAt: Date.now(),
 		timeoutMs: 0,
-		sessionId: args.sessionId,
-		approvedFingerprints: args.approvedFingerprints,
 		questions: args.questions,
 		message: args.message,
 		channel: args.channel,
+	};
+}
+
+/**
+ * Resolve the security-relevant resume fields for a channel HITL response from
+ * the PERSISTED record ONLY (never the unsigned query string). When no record
+ * exists these are all undefined — the correct, safe posture: a request that
+ * arrives with no stored interaction cannot carry authority via the URL.
+ *
+ * NOTE: provider-button channels (Slack/Discord/Telegram) additionally hold a
+ * provider-signature-verified `token.fingerprint`; those verified branches may
+ * prefer the verified token value over `fingerprint` here. The unsigned query
+ * path must use this helper's record-only values exclusively.
+ */
+export function buildChannelResumeFields(record: PendingCompanionHitlRecord | undefined): {
+	resumeSessionId?: string;
+	approvedFingerprints?: string;
+	fingerprint?: string;
+} {
+	return {
+		resumeSessionId: record?.sessionId,
+		approvedFingerprints: record?.approvedFingerprints,
+		fingerprint: record?.kind === 'approval' ? record.fingerprint : undefined,
 	};
 }
 
