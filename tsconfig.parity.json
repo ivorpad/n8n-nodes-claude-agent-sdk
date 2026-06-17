@@ -1,0 +1,9 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"incremental": false
+	},
+	"include": ["nodes/ClaudeAgentSdk/sdk/types.ts", "nodes/ClaudeAgentSdk/sdk/parity.assertions.ts"],
+	"exclude": []
+}

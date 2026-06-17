@@ -1,0 +1,110 @@
+{
+	"name": "n8n-nodes-claude-agent-sdk",
+	"version": "0.2.22",
+	"description": "n8n nodes for Claude Agent SDK integration",
+	"license": "MIT",
+	"packageManager": "pnpm@10.33.0",
+	"homepage": "",
+	"keywords": [
+		"n8n-community-node-package"
+	],
+	"author": {
+		"name": "Ivor",
+		"email": "ivor@gradion.io"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ivorpad/n8n-nodes-claude-agent-sdk.git"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"deadcode": "knip --reporter compact --include files,exports",
+		"deadcode:ts": "knip --reporter compact --include files,exports",
+		"dev": "bash scripts/dev.sh",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"release:publish": "node scripts/release.mjs",
+		"prepublishOnly": "n8n-node prerelease",
+		"postinstall": "node scripts/patch-pkce-challenge.mjs",
+		"prepare": "n8n-node build",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"typecheck": "tsc --noEmit",
+		"typecheck:parity": "tsc -p tsconfig.parity.json --noEmit",
+		"test:parity": "vitest run nodes/ClaudeAgentSdk/__tests__/parity/*.test.ts",
+		"clock": "rm -f /tmp/cc-skill-check.lock && echo 'removed' || echo 'failed'"
+	},
+	"files": [
+		"dist",
+		"!dist/tsconfig.tsbuildinfo",
+		"scripts/patch-pkce-challenge.mjs"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": false,
+		"credentials": [
+			"dist/credentials/ClaudeAgentSdkProviderApi.credentials.js",
+			"dist/credentials/ClaudeApi.credentials.js",
+			"dist/credentials/ClaudeAgentSdkOpenRouterApi.credentials.js",
+			"dist/credentials/AlibabaCodingPlanApi.credentials.js",
+			"dist/credentials/McpHeaderAuthApi.credentials.js",
+			"dist/credentials/SecureEnvVarsApi.credentials.js",
+			"dist/credentials/WhatsAppBusinessCloudApi.credentials.js",
+			"dist/credentials/WoztellBotApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/ClaudeAgentSdk/ClaudeAgentSdk.node.js",
+			"dist/nodes/ClaudeSkillTool/ClaudeSkillTool.node.js",
+			"dist/nodes/ClaudeAgentWhatsApp/ClaudeAgentWhatsApp.node.js",
+			"dist/nodes/ClaudeAgentSlack/ClaudeAgentSlack.node.js",
+			"dist/nodes/ClaudeAgentTelegram/ClaudeAgentTelegram.node.js",
+			"dist/nodes/ClaudeAgentEmail/ClaudeAgentEmail.node.js",
+			"dist/nodes/ClaudeAgentGmail/ClaudeAgentGmail.node.js",
+			"dist/nodes/ClaudeAgentDiscord/ClaudeAgentDiscord.node.js",
+			"dist/nodes/ClaudeAgentWoztell/ClaudeAgentWoztell.node.js",
+			"dist/nodes/WoztellSend/WoztellSend.node.js",
+			"dist/nodes/memory/SimpleSessionMemory/SimpleSessionMemory.node.js",
+			"dist/nodes/memory/RedisSessionMemory/RedisSessionMemory.node.js",
+			"dist/nodes/memory/PostgresSessionMemory/PostgresSessionMemory.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "0.19.0",
+		"@types/bun": "^1.3.10",
+		"@types/nodemailer": "7.0.11",
+		"@types/node": "^20.0.0",
+		"@types/pg": "^8.16.0",
+		"@types/shell-quote": "^1.7.5",
+		"@vitest/coverage-v8": "^4.0.14",
+		"eslint": "9.32.0",
+		"fallow": "^2.53.0",
+		"hono": "^4.12.6",
+		"knip": "^6.3.1",
+		"n8n-workflow": "^2.25.0",
+		"prettier": "3.6.2",
+		"release-it": "^19.0.4",
+		"typescript": "5.9.2",
+		"vitest": "^4.0.14",
+		"vitest-mock-extended": "^3.1.0"
+	},
+	"dependencies": {
+		"@anthropic-ai/claude-agent-sdk": "^0.3.175",
+		"@anthropic-ai/sdk": "^0.100.1",
+		"@microsoft/agentmesh-sdk": "3.1.0",
+		"@modelcontextprotocol/sdk": "^1.29.0",
+		"ajv": "^6.12.4",
+		"nodemailer": "7.0.11",
+		"path-sanitizer": "^3.1.0",
+		"pg": "^8.13.0",
+		"redis": "^4.7.0",
+		"safe-regex2": "^5.1.1",
+		"shell-quote": "^1.8.3",
+		"zod": "^4.3.6"
+	},
+	"overrides": {
+		"change-case": "4.1.2"
+	}
+}

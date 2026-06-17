@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: 'pnpm install --frozen-lockfile'
+
+      - name: Run typecheck
+        run: 'pnpm run typecheck'
+
+      - name: Run lint
+        run: 'pnpm run lint'
+
+      - name: Run dead-code checks
+        run: 'pnpm run deadcode'
+
+      - name: Run build
+        run: 'pnpm run build'
+
+      - name: Run full tests
+        run: 'pnpm test'
+
+      - name: Run parity type checks
+        run: 'pnpm run typecheck:parity'
+
+      - name: Run parity tests
+        run: 'pnpm run test:parity'

@@ -1,0 +1,23 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"entry": [
+		"credentials/*.credentials.ts",
+		"nodes/**/*.node.ts",
+		"nodes/ClaudeAgentSdk/sdk/parity.assertions.ts",
+		"scripts/**/*.mjs",
+		"scripts/**/*.ts"
+	],
+	"project": [
+		"credentials/**/*.ts",
+		"nodes/**/*.ts",
+		"nodes/**/__tests__/**/*.ts",
+		"scripts/**/*.mjs",
+		"scripts/**/*.ts",
+		"vitest.config.ts"
+	],
+	"ignore": [
+		"dist/**",
+		"docs/**",
+		"packages/**"
+	]
+}

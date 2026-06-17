@@ -1,0 +1,46 @@
+dist
+node_modules
+coverage
+acme/
+.env
+.env.*
+!.env.example
+!**/.env.example
+docker-compose.local.yml
+.mcp.json
+.fallow/
+
+# Local artifacts and generated outputs
+.DS_Store
+*.log
+*.tmp
+*.temp
+*.tgz
+*.tar.gz
+*.zip
+*.pdf
+*.db
+*.sqlite
+*.sqlite3
+.docker/sdk/
+
+# Local agent/runtime state, private notes, and scraped research caches
+.agents/
+.claude/
+.codex/
+.context/
+.firecrawl/
+.scratchpad/
+plans/
+skills/
+*.skill
+skills-lock.json
+
+# Private/provider-specific deployment experiments
+cloudflare-sandbox/
+deploy/hetzner/
+docs/archive/
+docs/deploy/
+docs/references/
+railway/
+scripts/galeon/

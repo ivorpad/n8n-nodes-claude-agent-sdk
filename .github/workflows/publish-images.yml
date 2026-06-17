@@ -1,0 +1,312 @@
+name: Publish Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_base:
+        description: Publish the base image
+        type: boolean
+        default: false
+      publish_support:
+        description: Publish task-runners and code-server images
+        type: boolean
+        default: true
+      publish_release:
+        description: Publish the n8n release image
+        type: boolean
+        default: true
+      release_tag:
+        description: "New release tag (example: v0.2.14). Leave empty for sha tag."
+        required: false
+        type: string
+      base_tag:
+        description: Base image tag override. Leave empty for sha tag.
+        required: false
+        type: string
+      n8n_version:
+        description: n8n runtime version for base image
+        required: false
+        default: '2.7.3'
+        type: string
+      claude_code_version:
+        description: Claude Code CLI version for base image
+        required: false
+        default: '2.1.39'
+        type: string
+      puppeteer_core_version:
+        description: puppeteer-core version for base image
+        required: false
+        default: 'latest'
+        type: string
+      publish_latest_alias:
+        description: "Also update :latest for n8n release image"
+        type: boolean
+        default: false
+      base_image_ref:
+        description: Base image ref for release build (tag or digest)
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - '.github/workflows/publish-images.yml'
+      - 'deploy/Dockerfile'
+      - 'deploy/Dockerfile.base'
+      - 'deploy/Dockerfile.runners'
+      - 'deploy/Dockerfile.code-server'
+      - 'deploy/.dockerignore'
+      - 'deploy/docker-bake.hcl'
+      - 'deploy/n8n-task-runners.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'nodes/**'
+      - 'dist/**'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.filter.outputs.base }}
+      release: ${{ steps.filter.outputs.release }}
+      support: ${{ steps.filter.outputs.support }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            base:
+              - 'deploy/Dockerfile.base'
+              - 'deploy/docker-bake.hcl'
+              - 'deploy/.dockerignore'
+              - '.github/workflows/publish-images.yml'
+            release:
+              - 'deploy/Dockerfile'
+              - 'deploy/docker-bake.hcl'
+              - 'deploy/.dockerignore'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'nodes/**'
+              - 'dist/**'
+            support:
+              - 'deploy/Dockerfile.runners'
+              - 'deploy/Dockerfile.code-server'
+              - 'deploy/n8n-task-runners.json'
+              - 'deploy/docker-bake.hcl'
+              - 'deploy/.dockerignore'
+              - '.github/workflows/publish-images.yml'
+
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.meta.outputs.registry }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      base_tag: ${{ steps.meta.outputs.base_tag }}
+      cache_scope: ${{ steps.meta.outputs.cache_scope }}
+      publish_latest: ${{ steps.meta.outputs.publish_latest }}
+    steps:
+      - id: meta
+        env:
+          DISPATCH_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          DISPATCH_BASE_TAG: ${{ github.event.inputs.base_tag }}
+          DISPATCH_PUBLISH_LATEST: ${{ github.event.inputs.publish_latest_alias }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REGISTRY="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          SHA_TAG="sha-${GITHUB_SHA::12}"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+            CACHE_SCOPE="${GITHUB_REF_NAME}"
+            PUBLISH_LATEST="true"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${DISPATCH_RELEASE_TAG}" ]]; then
+            RELEASE_TAG="${DISPATCH_RELEASE_TAG}"
+            CACHE_SCOPE="${DISPATCH_RELEASE_TAG}"
+            if [[ "${DISPATCH_PUBLISH_LATEST}" == "true" ]]; then
+              PUBLISH_LATEST="true"
+            else
+              PUBLISH_LATEST="false"
+            fi
+          else
+            RELEASE_TAG="${SHA_TAG}"
+            CACHE_SCOPE="${GITHUB_REF_NAME}"
+            PUBLISH_LATEST="false"
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${DISPATCH_BASE_TAG}" ]]; then
+            BASE_TAG="${DISPATCH_BASE_TAG}"
+          else
+            BASE_TAG="${SHA_TAG}"
+          fi
+
+          SAFE_CACHE_SCOPE="$(echo "${CACHE_SCOPE}" | tr '/:@' '-' | tr -cd '[:alnum:]._-' )"
+
+          {
+            echo "registry=${REGISTRY}"
+            echo "release_tag=${RELEASE_TAG}"
+            echo "base_tag=${BASE_TAG}"
+            echo "cache_scope=${SAFE_CACHE_SCOPE}"
+            echo "publish_latest=${PUBLISH_LATEST}"
+          } >> "${GITHUB_OUTPUT}"
+
+  publish-base:
+    runs-on: ubuntu-latest
+    needs: [changes, metadata]
+    if: github.event.inputs.publish_base == 'true' || needs.changes.outputs.base == 'true'
+    outputs:
+      base_image_ref: ${{ steps.out.outputs.base_image_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish base image
+        env:
+          REGISTRY: ${{ needs.metadata.outputs.registry }}
+          BASE_TAG: ${{ needs.metadata.outputs.base_tag }}
+          CACHE_SCOPE: ${{ needs.metadata.outputs.cache_scope }}
+          N8N_VERSION_INPUT: ${{ github.event.inputs.n8n_version }}
+          CLAUDE_CODE_VERSION_INPUT: ${{ github.event.inputs.claude_code_version }}
+          PUPPETEER_CORE_VERSION_INPUT: ${{ github.event.inputs.puppeteer_core_version }}
+        run: |
+          set -euo pipefail
+          N8N_VERSION="${N8N_VERSION_INPUT:-2.7.3}"
+          CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION_INPUT:-2.1.170}"
+          PUPPETEER_CORE_VERSION="${PUPPETEER_CORE_VERSION_INPUT:-latest}"
+          docker buildx bake \
+            --file deploy/docker-bake.hcl \
+            --set base.args.N8N_VERSION="${N8N_VERSION}" \
+            --set base.args.CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION}" \
+            --set base.args.PUPPETEER_CORE_VERSION="${PUPPETEER_CORE_VERSION}" \
+            base
+
+      - id: out
+        env:
+          REGISTRY: ${{ needs.metadata.outputs.registry }}
+          BASE_TAG: ${{ needs.metadata.outputs.base_tag }}
+        run: echo "base_image_ref=${REGISTRY}/n8n-claude-sdk-base:${BASE_TAG}" >> "${GITHUB_OUTPUT}"
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: [changes, metadata]
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == 'true') || startsWith(github.ref, 'refs/tags/v') || needs.changes.outputs.release == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install and build package
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Pack SDK tarball for image build
+        run: |
+          set -euo pipefail
+          mkdir -p .docker/sdk
+          pnpm pack --pack-destination .docker/sdk > /dev/null 2>&1
+          mv .docker/sdk/n8n-nodes-claude-agent-sdk-*.tgz .docker/sdk/n8n-nodes-claude-agent-sdk.tgz
+
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Resolve base image ref
+        id: base-ref
+        env:
+          DISPATCH_BASE_REF: ${{ github.event.inputs.base_image_ref }}
+          REGISTRY: ${{ needs.metadata.outputs.registry }}
+        run: |
+          set -euo pipefail
+          if [ -n "${DISPATCH_BASE_REF}" ]; then
+            echo "value=${DISPATCH_BASE_REF}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "value=${REGISTRY}/n8n-claude-sdk-base:2026-03-06" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Build and publish release image
+        env:
+          REGISTRY: ${{ needs.metadata.outputs.registry }}
+          RELEASE_TAG: ${{ needs.metadata.outputs.release_tag }}
+          CACHE_SCOPE: ${{ needs.metadata.outputs.cache_scope }}
+          BASE_IMAGE_REF: ${{ steps.base-ref.outputs.value }}
+        run: |
+          set -euo pipefail
+          docker buildx bake \
+            --file deploy/docker-bake.hcl \
+            --set release.args.BASE_IMAGE="${BASE_IMAGE_REF}" \
+            release
+
+      - name: Add latest alias on version tags
+        if: needs.metadata.outputs.publish_latest == 'true'
+        env:
+          REGISTRY: ${{ needs.metadata.outputs.registry }}
+          RELEASE_TAG: ${{ needs.metadata.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "${REGISTRY}/n8n-claude-sdk:latest" \
+            "${REGISTRY}/n8n-claude-sdk:${RELEASE_TAG}"
+
+  publish-support:
+    runs-on: ubuntu-latest
+    needs: [changes, metadata]
+    if: github.event.inputs.publish_support == 'true' || startsWith(github.ref, 'refs/tags/v') || needs.changes.outputs.support == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish task-runners + code-server
+        env:
+          REGISTRY: ${{ needs.metadata.outputs.registry }}
+          RUNNERS_TAG: ${{ needs.metadata.outputs.release_tag }}
+          CODE_SERVER_TAG: ${{ needs.metadata.outputs.release_tag }}
+          CACHE_SCOPE: ${{ needs.metadata.outputs.cache_scope }}
+        run: |
+          set -euo pipefail
+          docker buildx bake \
+            --file deploy/docker-bake.hcl \
+            publish-support

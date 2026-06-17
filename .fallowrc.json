@@ -1,0 +1,56 @@
+{
+	"$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/fallow.schema.json",
+	"entry": [
+		"credentials/AlibabaCodingPlanApi.credentials.ts",
+		"credentials/ClaudeApi.credentials.ts",
+		"credentials/McpHeaderAuthApi.credentials.ts",
+		"credentials/OllamaApi.credentials.ts",
+		"credentials/OpenRouterApi.credentials.ts",
+		"credentials/SecureEnvVarsApi.credentials.ts",
+		"credentials/WhatsAppBusinessCloudApi.credentials.ts",
+		"credentials/WoztellBotApi.credentials.ts",
+		"nodes/ClaudeAgentSdk/ClaudeAgentSdk.node.ts",
+		"nodes/ClaudeAgentSdk/sdk/parity.assertions.ts",
+		"nodes/ClaudeSkillTool/ClaudeSkillTool.node.ts",
+		"nodes/ClaudeAgentDiscord/ClaudeAgentDiscord.node.ts",
+		"nodes/ClaudeAgentEmail/ClaudeAgentEmail.node.ts",
+		"nodes/ClaudeAgentGmail/ClaudeAgentGmail.node.ts",
+		"nodes/ClaudeAgentSlack/ClaudeAgentSlack.node.ts",
+		"nodes/ClaudeAgentTelegram/ClaudeAgentTelegram.node.ts",
+		"nodes/ClaudeAgentWhatsApp/ClaudeAgentWhatsApp.node.ts",
+		"nodes/ClaudeAgentWoztell/ClaudeAgentWoztell.node.ts",
+		"nodes/WoztellSend/WoztellSend.node.ts",
+		"nodes/memory/PostgresSessionMemory/PostgresSessionMemory.node.ts",
+		"nodes/memory/RedisSessionMemory/RedisSessionMemory.node.ts",
+		"nodes/memory/SimpleSessionMemory/SimpleSessionMemory.node.ts"
+	],
+	"ignoreDependencies": ["nodemailer"],
+	"usedClassMembers": [
+		{
+			"implements": "ICredentialType",
+			"members": [
+				"name",
+				"displayName",
+				"documentationUrl",
+				"icon",
+				"properties",
+				"authenticate",
+				"test"
+			]
+		},
+		{
+			"implements": "INodeType",
+			"members": ["description", "methods"]
+		},
+		{
+			"implements": "SdkAdapter",
+			"members": ["version", "createSession", "resumeSession"]
+		},
+		{
+			"implements": "NotificationChannel",
+			"members": ["name", "sendApproval", "sendQuestion"]
+		},
+		"generateRequestId",
+		"getConfig"
+	]
+}

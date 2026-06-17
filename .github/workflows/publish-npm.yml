@@ -1,0 +1,71 @@
+name: Publish NPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run all publish checks without publishing
+        type: boolean
+        default: true
+      provenance:
+        description: Publish with npm provenance
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-npm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run typecheck
+        run: pnpm run typecheck
+
+      - name: Run lint
+        run: pnpm run lint
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Run build
+        run: pnpm run build
+
+      - name: Verify package contents
+        run: pnpm pack --dry-run
+
+      - name: Publish dry run
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: pnpm publish --dry-run --no-git-checks --access public
+
+      - name: Publish package
+        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "${{ inputs.provenance }}" = "false" ]; then
+            pnpm publish --no-git-checks --access public
+          else
+            pnpm publish --no-git-checks --access public --provenance
+          fi

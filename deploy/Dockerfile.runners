@@ -1,0 +1,33 @@
+FROM n8nio/runners:next
+
+USER root
+
+# Node.js + pnpm already in base image; npm is not — pnpm handles everything
+
+# Install JavaScript packages for code nodes
+RUN cd /opt/runners/task-runner-javascript && pnpm add @anthropic-ai/claude-code --allow-build=@anthropic-ai/claude-code
+
+# Install Python packages for code nodes
+RUN cd /opt/runners/task-runner-python && uv pip install \
+    claude-agent-sdk \
+    aiohttp \
+    boto3 \
+    google-genai \
+    markdown \
+    pillow \
+    pyjwt \
+    requests
+
+# Install claude-code CLI globally
+ENV PNPM_HOME=/usr/local/share/pnpm
+ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
+RUN pnpm add -g @anthropic-ai/claude-code --allow-build=@anthropic-ai/claude-code
+
+# Copy task runners config
+COPY n8n-task-runners.json /etc/n8n-task-runners.json
+RUN chmod 644 /etc/n8n-task-runners.json
+
+# Create .claude directory with correct ownership for runner user
+RUN mkdir -p /home/runner/.claude && chown -R runner:runner /home/runner/.claude
+
+USER runner
