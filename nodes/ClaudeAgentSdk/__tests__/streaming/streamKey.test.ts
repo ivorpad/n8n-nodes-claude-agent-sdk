@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { buildDurableStreamKey } from '../../streaming/streamKey';
+import { buildDurableStreamKey, isNonceFormatStreamKey } from '../../streaming/streamKey';
 
 describe('buildDurableStreamKey', () => {
 	it('appends a 128-bit (32 hex char) nonce so the key is not enumerable', () => {
@@ -40,5 +40,22 @@ describe('buildDurableStreamKey', () => {
 		const real = buildDurableStreamKey({ executionId: '1', itemIndex: 0 });
 		expect(real).not.toBe(guessed);
 		expect(real.startsWith('stream:1:0:')).toBe(true);
+	});
+});
+
+describe('isNonceFormatStreamKey (replay gate)', () => {
+	it('accepts a freshly minted nonce-format key', () => {
+		expect(isNonceFormatStreamKey(buildDurableStreamKey({ executionId: '5', itemIndex: 0 }))).toBe(true);
+		expect(isNonceFormatStreamKey('stream:42:3:0123456789abcdef0123456789abcdef')).toBe(true);
+	});
+
+	it('rejects enumerable / malformed keys the replay endpoint must refuse', () => {
+		expect(isNonceFormatStreamKey('stream:1:0')).toBe(false); // legacy 3-segment
+		expect(isNonceFormatStreamKey('req_12345')).toBe(false); // requestId-derived
+		expect(isNonceFormatStreamKey('stream:1:0:short')).toBe(false); // nonce too short
+		expect(isNonceFormatStreamKey('stream:1:0:0123456789ABCDEF0123456789ABCDEF')).toBe(false); // uppercase hex
+		expect(isNonceFormatStreamKey('stream:1:0:0123456789abcdef0123456789abcdefAA')).toBe(false); // trailing data
+		expect(isNonceFormatStreamKey(undefined)).toBe(false);
+		expect(isNonceFormatStreamKey('')).toBe(false);
 	});
 });
