@@ -51,6 +51,8 @@
 			"members": ["name", "sendApproval", "sendQuestion"]
 		},
 		"generateRequestId",
-		"getConfig"
+		"getConfig",
+		"recordAuditEntries",
+		"toMetadataHints"
 	]
 }

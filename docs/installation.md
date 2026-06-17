@@ -8,14 +8,15 @@ n8n. It is not designed for n8n Cloud or for n8n-verified-node constraints.
 - Self-hosted n8n with community nodes enabled.
 - A runtime that can start child processes and access the configured working
   directories.
-- Claude Code CLI installed in the n8n runtime when using the **Local CLI**
-  backend.
+- The `claude` executable available in the n8n runtime when using the
+  **Local CLI** backend.
 - Provider credentials or a logged-in Claude Code CLI session.
 - Optional Redis/Postgres services if you use those memory or durability
   features.
 
-For Docker, install the Claude CLI and required shell/tooling in the n8n image,
-not only in an external task-runner container.
+This package depends on `@anthropic-ai/claude-agent-sdk`, but it does not bundle
+the Claude Code CLI. For Docker, install the CLI and required shell/tooling in
+the n8n image, not only in an external task-runner container.
 
 ## Install From npm
 
@@ -103,7 +104,7 @@ RUN mkdir -p /home/node/.n8n/nodes \
 USER node
 ```
 
-Your image must also provide the Claude CLI path, shell, working-directory
+Your image must also provide the `claude` executable, shell, working-directory
 mounts, Claude config mount, and optional Redis/Postgres services needed by your
 workflow.
 

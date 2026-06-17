@@ -1,10 +1,11 @@
 import { ApplicationError, type IDataObject, type IExecuteFunctions } from 'n8n-workflow';
 
 import { HITL_CONTRACT_VERSION } from '../../../hitl/contract';
+import type { HitlQuestionDefinition } from '../../../hitl/contractTypes';
 import type { HitlInteractionRecord, HitlInteractionStore } from '../../../hitl/interactionStore';
 import type { ISessionMemory } from '../../../types';
 import type { ApprovalHandler } from '../../../permissions';
-import type { AskUserQuestionArray, NotificationChannel } from '../../../notifications/types';
+import type { NotificationChannel } from '../../../notifications/types';
 import type { SendChunkFn } from '../../../streaming/types';
 import { toQuestionFormDefinition } from '../../../../ClaudeAgentChannelShared/core/webhookRuntime';
 
@@ -13,6 +14,8 @@ import type { ExecuteTaskResult } from '../types';
 import { resolveTranscriptWorkingDirectory } from '../sessionDirectory';
 import type { InvocationObservabilityCollector } from '../observability';
 import type { RuntimePendingInteraction, RuntimePendingState } from '../hitlRuntimeState';
+
+type PendingQuestionArray = HitlQuestionDefinition[];
 
 interface WaitForPendingInteractionsArgs {
 	execFunctions: IExecuteFunctions;
@@ -43,12 +46,12 @@ interface WaitForPendingInteractionsArgs {
 	observabilityCollector?: InvocationObservabilityCollector;
 }
 
-function parseQuestions(interaction: RuntimePendingInteraction): AskUserQuestionArray {
+function parseQuestions(interaction: RuntimePendingInteraction): PendingQuestionArray {
 	if (!interaction.questionsBase64) return [];
 	try {
 		const decoded = Buffer.from(interaction.questionsBase64, 'base64').toString('utf-8');
 		const parsed = JSON.parse(decoded);
-		return Array.isArray(parsed) ? (parsed as AskUserQuestionArray) : [];
+		return Array.isArray(parsed) ? (parsed as PendingQuestionArray) : [];
 	} catch {
 		return [];
 	}
@@ -95,7 +98,7 @@ function buildPendingApprovalRequest(args: {
 	};
 }
 
-function buildQuestionPrompt(questions: AskUserQuestionArray): string {
+function buildQuestionPrompt(questions: PendingQuestionArray): string {
 	return (
 		questions.map((question) => question.question).join('\n') ||
 		'Please answer the pending question.'

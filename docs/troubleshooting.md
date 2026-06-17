@@ -27,7 +27,8 @@ spawn /path/to/claude ENOENT
 
 Fix:
 
-1. Install Claude Code CLI in the n8n runtime that executes the workflow.
+1. Make the `claude` executable available in the n8n runtime that executes the
+   workflow.
 2. Set the executable path in the `Claude Agent SDK Anthropic API` credential if
    using CLI subscription auth.
 3. Verify from inside the container or process:

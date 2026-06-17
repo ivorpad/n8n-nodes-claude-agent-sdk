@@ -223,23 +223,6 @@ export type UserPromptSubmitHookInput = SdkUserPromptSubmitHookInput;
 // Hook output — alias to SDK's SyncHookJSONOutput
 export type HookOutput = SyncHookJSONOutput;
 
-// SDK delivers undefined toolUseID for non-tool events; signatures mirror
-// the canonical HookCallback calling convention.
-export type PreToolUseHook = (
-	input: PreToolUseHookInput,
-	toolUseId: string | undefined,
-) => Promise<HookOutput>;
-
-export type PostToolUseHook = (
-	input: PostToolUseHookInput,
-	toolUseId: string | undefined,
-) => Promise<HookOutput>;
-
-export type UserPromptSubmitHook = (
-	input: UserPromptSubmitHookInput,
-	toolUseId: string | undefined,
-) => Promise<HookOutput>;
-
 /** Canonical hooks record (upstream Options['hooks']). */
 export type PermissionHooks = SdkHooks;
 

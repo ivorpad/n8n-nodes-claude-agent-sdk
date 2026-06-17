@@ -64,7 +64,8 @@ verification details.
 
 For Local CLI execution:
 
-- install Claude Code CLI in the n8n runtime that executes workflows,
+- make the `claude` executable available in the n8n runtime that executes
+  workflows,
 - configure provider credentials or a logged-in CLI session,
 - mount the working directory inside the n8n container/process,
 - mount or configure a durable Claude config directory if sessions must resume

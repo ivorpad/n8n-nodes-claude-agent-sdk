@@ -3,7 +3,7 @@
  */
 
 // SDK canonical re-exports — never re-declare these locally
-export type { AgentDefinition, McpServerConfig, McpServerStatus } from '@anthropic-ai/claude-agent-sdk';
+export type { AgentDefinition, McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 
 // =============================================================================
 // Subagent Types
@@ -93,13 +93,10 @@ interface McpServerUIStdio extends McpServerUIBase {
 
 export type McpServerUI = McpServerUIHttp | McpServerUISse | McpServerUIStdio;
 /** @deprecated Use McpSdkServerConfigWithInstance from SDK */
-export type McpSdkServerConfig = import('@anthropic-ai/claude-agent-sdk').McpSdkServerConfigWithInstance;
+export type McpSdkServerConfig =
+	import('@anthropic-ai/claude-agent-sdk').McpSdkServerConfigWithInstance;
 
-type N8nMcpToolName =
-	| 'getItemJson'
-	| 'getExecutionContext'
-	| 'log'
-	| 'setOutputJson';
+type N8nMcpToolName = 'getItemJson' | 'getExecutionContext' | 'log' | 'setOutputJson';
 
 export interface N8nMcpSettings {
 	enabled?: boolean;
@@ -192,8 +189,6 @@ export interface ToolCall {
 	tool: string;
 	input: unknown;
 }
-
-// McpServerStatus re-exported from SDK at top of file
 
 export type ObservabilityMode = 'off' | 'summary' | 'full';
 

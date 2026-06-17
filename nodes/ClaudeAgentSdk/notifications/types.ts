@@ -4,8 +4,6 @@
 
 import type { HitlQuestionDefinition } from '../hitl/contractTypes';
 
-export type AskUserQuestionArray = HitlQuestionDefinition[];
-
 export interface ApprovalNotification {
 	requestId: string;
 	toolName: string;
@@ -19,7 +17,7 @@ export interface ApprovalNotification {
 
 export interface QuestionNotification {
 	requestId: string;
-	questions: AskUserQuestionArray;
+	questions: HitlQuestionDefinition[];
 	responseUrl: string;
 	expiresAt: string;
 	sessionId?: string;

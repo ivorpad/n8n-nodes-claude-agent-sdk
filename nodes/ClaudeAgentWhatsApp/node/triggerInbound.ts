@@ -25,12 +25,9 @@ import {
 	getPending,
 	getPendingByProviderMessageId,
 } from '../store/PendingWhatsAppHitlStore';
-import type {
-	PendingStoreBackend,
-	PendingWhatsAppHitlRecord,
-} from '../types';
+import type { PendingStoreBackend, PendingWhatsAppHitlRecord } from '../types';
 
-export interface ParsedTriggerInbound {
+interface ParsedTriggerInbound {
 	hasMessage: boolean;
 	requestId?: string;
 	approved?: boolean;
@@ -53,9 +50,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asNonEmptyString(value: unknown): string | undefined {
-	return typeof value === 'string' && value.trim().length > 0
-		? value.trim()
-		: undefined;
+	return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 export function normalizeRecipientId(phoneNumber: string): string {
@@ -73,7 +68,8 @@ function parseApprovalFromText(value: string | undefined): boolean | undefined {
 
 function parseTriggerInbound(input: Record<string, unknown>): ParsedTriggerInbound {
 	const messages = Array.isArray(input.messages) ? input.messages : undefined;
-	const message = messages && messages.length > 0 && isRecord(messages[0]) ? messages[0] : undefined;
+	const message =
+		messages && messages.length > 0 && isRecord(messages[0]) ? messages[0] : undefined;
 	if (!message) {
 		return { hasMessage: false };
 	}
@@ -90,36 +86,36 @@ function parseTriggerInbound(input: Record<string, unknown>): ParsedTriggerInbou
 	if (interactiveType === 'button_reply') {
 		const buttonReply = isRecord(interactive?.button_reply) ? interactive.button_reply : undefined;
 		const token = parseReplyToken(buttonReply?.id);
-			if (token) {
-				inbound.requestId = token.requestId;
-				inbound.approved = token.approved;
-				inbound.fingerprint = token.fingerprint;
-				inbound.questionIndex = token.questionIndex;
-				inbound.optionIndex = token.optionIndex;
-			}
+		if (token) {
+			inbound.requestId = token.requestId;
+			inbound.approved = token.approved;
+			inbound.fingerprint = token.fingerprint;
+			inbound.questionIndex = token.questionIndex;
+			inbound.optionIndex = token.optionIndex;
+		}
 		inbound.selectedLabel = asNonEmptyString(buttonReply?.title);
 	} else if (interactiveType === 'list_reply') {
 		const listReply = isRecord(interactive?.list_reply) ? interactive.list_reply : undefined;
 		const token = parseReplyToken(listReply?.id);
-			if (token) {
-				inbound.requestId = token.requestId;
-				inbound.fingerprint = token.fingerprint;
-				inbound.questionIndex = token.questionIndex;
-				inbound.optionIndex = token.optionIndex;
-			}
+		if (token) {
+			inbound.requestId = token.requestId;
+			inbound.fingerprint = token.fingerprint;
+			inbound.questionIndex = token.questionIndex;
+			inbound.optionIndex = token.optionIndex;
+		}
 		inbound.selectedLabel = asNonEmptyString(listReply?.title);
 	}
 
 	const button = isRecord(message.button) ? message.button : undefined;
 	if (!inbound.requestId) {
 		const token = parseReplyToken(button?.payload);
-			if (token) {
-				inbound.requestId = token.requestId;
-				inbound.approved = token.approved;
-				inbound.fingerprint = token.fingerprint;
-				inbound.questionIndex = token.questionIndex;
-				inbound.optionIndex = token.optionIndex;
-			}
+		if (token) {
+			inbound.requestId = token.requestId;
+			inbound.approved = token.approved;
+			inbound.fingerprint = token.fingerprint;
+			inbound.questionIndex = token.questionIndex;
+			inbound.optionIndex = token.optionIndex;
+		}
 	}
 	if (!inbound.selectedLabel) {
 		inbound.selectedLabel = asNonEmptyString(button?.text);
@@ -143,9 +139,9 @@ function buildQuestionAnswersFromInbound(args: {
 	const questionText = question.question;
 
 	if (
-		typeof inbound.optionIndex === 'number'
-		&& Array.isArray(question.options)
-		&& question.options[inbound.optionIndex]
+		typeof inbound.optionIndex === 'number' &&
+		Array.isArray(question.options) &&
+		question.options[inbound.optionIndex]
 	) {
 		answers[questionText] = question.options[inbound.optionIndex].label;
 		return answers;
@@ -167,10 +163,10 @@ function buildQuestionAnswersFromInbound(args: {
 	return {};
 }
 
-function getFirstQuestion(questions: HitlQuestionDefinition[] | undefined): HitlQuestionDefinition | undefined {
-	return Array.isArray(questions) && questions.length > 0
-		? questions[0]
-		: undefined;
+function getFirstQuestion(
+	questions: HitlQuestionDefinition[] | undefined,
+): HitlQuestionDefinition | undefined {
+	return Array.isArray(questions) && questions.length > 0 ? questions[0] : undefined;
 }
 
 export async function handleTriggerInbound(
@@ -178,8 +174,9 @@ export async function handleTriggerInbound(
 	itemJson: Record<string, unknown>,
 	itemIndex: number,
 ): Promise<TriggerHandlingResult | undefined> {
-	const looksLikeWhatsAppTriggerEvent = itemJson.field === 'messages'
-		&& (Array.isArray(itemJson.messages) || Array.isArray(itemJson.statuses));
+	const looksLikeWhatsAppTriggerEvent =
+		itemJson.field === 'messages' &&
+		(Array.isArray(itemJson.messages) || Array.isArray(itemJson.statuses));
 	if (!looksLikeWhatsAppTriggerEvent) return undefined;
 
 	const pendingStoreBackend = ctx.getNodeParameter(
@@ -295,12 +292,7 @@ export async function handleTriggerInbound(
 		answers,
 		responseAction,
 	});
-	const consumeResult = await consumePendingWithDecision(
-		ctx,
-		requestId,
-		decisionKey,
-		storeConfig,
-	);
+	const consumeResult = await consumePendingWithDecision(ctx, requestId, decisionKey, storeConfig);
 	if (consumeResult.status !== 'accepted' || !consumeResult.record) {
 		return { mode: 'drop' };
 	}
