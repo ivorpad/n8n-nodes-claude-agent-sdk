@@ -12,21 +12,25 @@ import {
 	buildHitlQuestionResponseEnvelope,
 } from '../../ClaudeAgentSdk/hitl/contract';
 import {
+	buildApprovalConfirmationHtml,
 	buildQuestionFormHtml,
 	FORM_CSP,
 	parseQuestionAnswers,
 } from '../../ClaudeAgentSdk/webhook/questionForm';
 import { resolveQuestionResponseAction } from '../../ClaudeAgentSdk/hitl/questionPolicy';
+import { buildChannelReplyDecisionKey } from '../../ClaudeAgentChannelShared/core/channelReplyContract';
 import {
-	asNonEmptyString,
 	normalizeRawAnswers,
 	parseApprovalDecision,
 	parseQuestionsFromQuery,
 	toQuestionFormDefinition,
 } from '../../ClaudeAgentChannelShared/core/webhookRuntime';
 import {
+	buildChannelResumeFields,
 	buildFallbackApprovalPendingRecord,
+	buildFallbackQuestionPendingRecord,
 	buildWorkflowData,
+	normalizeAnswersForDecision,
 } from '../../ClaudeAgentChannelShared/core/webhookHelpers';
 import { consumePendingWithDecision, getPending } from '../store/PendingGmailHitlStore';
 
@@ -38,21 +42,43 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	const req = this.getRequestObject();
 	const method = req.method;
 	const query = req.query as Record<string, unknown>;
+	const rawBody = this.getBodyData() as Record<string, unknown>;
+	const postSubmission: Record<string, unknown> =
+		method === 'POST' && rawBody && typeof rawBody === 'object'
+			? ((rawBody.data as Record<string, unknown>) ?? rawBody)
+			: {};
 
-	const requestId = typeof query.requestId === 'string' ? query.requestId : '';
+	const requestId = typeof query.requestId === 'string'
+		? query.requestId
+		: typeof postSubmission.requestId === 'string'
+			? postSubmission.requestId
+			: '';
 	if (!requestId) {
 		return { webhookResponse: 'Error: Missing requestId parameter' };
 	}
 
 	const pending = getPending(this, requestId);
-	const querySessionId = asNonEmptyString(query.sid);
-	const queryApprovedFingerprints = asNonEmptyString(query.afps);
-	const queryFingerprint = asNonEmptyString(query.fp);
 
-	if (query.approved !== undefined || pending?.kind === 'approval') {
-		const approved = parseApprovalDecision(query.approved);
+	const approvalValue = query.approved ?? postSubmission.approved;
+	if (approvalValue !== undefined || pending?.kind === 'approval') {
+		const approved = parseApprovalDecision(approvalValue);
 		if (typeof approved !== 'boolean') {
 			return { webhookResponse: 'Error: Missing approved parameter' };
+		}
+
+		if (method === 'GET') {
+			if (pending?.status === 'consumed') {
+				return { webhookResponse: 'This HITL request was already answered.' };
+			}
+			const res = this.getResponseObject();
+			res.setHeader('Content-Type', 'text/html; charset=utf-8');
+			res.setHeader('Content-Security-Policy', FORM_CSP);
+			res.send(buildApprovalConfirmationHtml({ approved, toolName: pending?.toolName }));
+			return { noWebhookResponse: true };
+		}
+
+		if (method !== 'POST') {
+			return { webhookResponse: 'Error: Approval decisions must be submitted with POST' };
 		}
 
 		const decisionKey = `approval:${approved ? 'approved' : 'denied'}`;
@@ -62,9 +88,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 			decisionKey,
 			buildFallbackApprovalPendingRecord({
 				requestId,
-				sessionId: querySessionId,
-				approvedFingerprints: queryApprovedFingerprints,
-				fingerprint: queryFingerprint,
 				channel: 'gmail',
 			}),
 		);
@@ -79,15 +102,17 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		}
 
 		const consumedPending = consumeResult.record;
+		// Record-only: resume fields never come from the unsigned URL query.
+		const resume = buildChannelResumeFields(consumedPending);
 		const envelope = buildHitlApprovalResponseEnvelope({
 			requestId,
 			approved,
 			channel: 'gmail',
 			decisionId: buildDecisionId(requestId),
 			decidedAt: new Date().toISOString(),
-			resumeSessionId: consumedPending?.sessionId ?? querySessionId,
-			approvedFingerprints: consumedPending?.approvedFingerprints ?? queryApprovedFingerprints,
-			fingerprint: consumedPending?.fingerprint ?? queryFingerprint,
+			resumeSessionId: resume.resumeSessionId,
+			approvedFingerprints: resume.approvedFingerprints,
+			fingerprint: resume.fingerprint,
 		});
 		assertHitlResponseEnvelope(envelope);
 
@@ -121,10 +146,9 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { noWebhookResponse: true };
 	}
 
-	const rawBody = this.getBodyData() as Record<string, unknown>;
 	const submission =
-		method === 'POST' && rawBody && typeof rawBody === 'object'
-			? ((rawBody.data as Record<string, unknown>) ?? rawBody)
+		method === 'POST'
+			? postSubmission
 			: query;
 
 	const answers =
@@ -136,19 +160,51 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { webhookResponse: 'Error: Missing question answers in webhook payload' };
 	}
 
+	// CH-1: do NOT honor a caller-supplied responseAction from the unsigned
+	// submission — a leaked URL could pass responseAction=complete to terminate
+	// the agent loop. The action is derived from the persisted question options.
 	const responseAction = resolveQuestionResponseAction({
 		questions,
 		answers,
-		explicitResponseAction: submission.responseAction,
 	});
+	const decisionKey = buildChannelReplyDecisionKey({
+		kind: 'question',
+		decisionType: 'answers',
+		answers: normalizeAnswersForDecision(answers),
+		responseAction,
+	});
+	const consumeResult = consumePendingWithDecision(
+		this,
+		requestId,
+		decisionKey,
+		buildFallbackQuestionPendingRecord({
+			requestId,
+			questions,
+			message: pending?.message,
+			channel: 'gmail',
+		}),
+	);
+	if (consumeResult.status === 'duplicate') {
+		return { webhookResponse: 'This HITL request was already answered.' };
+	}
+	if (consumeResult.status === 'conflict') {
+		return { webhookResponse: 'This HITL request was already answered with a different response.' };
+	}
+	if (consumeResult.status === 'missing') {
+		return { webhookResponse: 'Error: Unknown or expired HITL requestId' };
+	}
+
+	const consumedPending = consumeResult.record;
+	// Record-only: resume fields never come from the unsigned URL query.
+	const resume = buildChannelResumeFields(consumedPending);
 	const envelope = buildHitlQuestionResponseEnvelope({
 		requestId,
 		answers,
 		channel: 'gmail',
 		decisionId: buildDecisionId(requestId),
 		decidedAt: new Date().toISOString(),
-		resumeSessionId: pending?.sessionId ?? querySessionId,
-		approvedFingerprints: pending?.approvedFingerprints ?? queryApprovedFingerprints,
+		resumeSessionId: resume.resumeSessionId,
+		approvedFingerprints: resume.approvedFingerprints,
 		responseAction,
 	});
 	assertHitlResponseEnvelope(envelope);

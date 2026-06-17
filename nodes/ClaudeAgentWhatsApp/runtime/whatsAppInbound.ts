@@ -171,11 +171,21 @@ export function buildQuestionAnswersFromInbound(args: {
 	return answers;
 }
 
+/**
+ * Trust boundary for WhatsApp companion HITL resume.
+ *
+ * A fallback record exists precisely BECAUSE there is no persisted interaction
+ * for this requestId. The companion resume/approve URL is delivered out-of-band
+ * and n8n's resume token signs only the execution + node path, NOT the query
+ * string — so `?sid=&afps=&fp=` are attacker-controllable by anyone holding the
+ * URL. These builders therefore carry ONLY non-authorizing fields (requestId,
+ * channel, recipientId, providerMessageId, and the question/message text needed
+ * to render a form). Every security-relevant resume field (sessionId,
+ * approvedFingerprints, fingerprint) is left undefined — the safe-empty posture.
+ * Legitimate restore across a restart requires the persisted store, not the URL.
+ */
 export function buildFallbackApprovalPendingRecord(args: {
 	requestId: string;
-	sessionId?: string;
-	approvedFingerprints?: string;
-	fingerprint?: string;
 	recipientId?: string;
 	providerMessageId?: string;
 }): PendingWhatsAppHitlRecord {
@@ -185,9 +195,6 @@ export function buildFallbackApprovalPendingRecord(args: {
 		status: 'pending',
 		createdAt: Date.now(),
 		timeoutMs: 0,
-		sessionId: args.sessionId,
-		approvedFingerprints: args.approvedFingerprints,
-		fingerprint: args.fingerprint,
 		channel: 'whatsapp',
 		recipientId: args.recipientId,
 		providerMessageId: args.providerMessageId,
@@ -196,8 +203,6 @@ export function buildFallbackApprovalPendingRecord(args: {
 
 export function buildFallbackQuestionPendingRecord(args: {
 	requestId: string;
-	sessionId?: string;
-	approvedFingerprints?: string;
 	questions: PendingWhatsAppHitlRecord['questions'];
 	message?: string;
 	recipientId?: string;
@@ -209,8 +214,6 @@ export function buildFallbackQuestionPendingRecord(args: {
 		status: 'pending',
 		createdAt: Date.now(),
 		timeoutMs: 0,
-		sessionId: args.sessionId,
-		approvedFingerprints: args.approvedFingerprints,
 		questions: args.questions,
 		message: args.message,
 		channel: 'whatsapp',

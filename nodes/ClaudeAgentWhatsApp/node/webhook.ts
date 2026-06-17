@@ -13,6 +13,8 @@ import {
 } from '../../ClaudeAgentSdk/webhook/questionForm';
 import { resolveQuestionResponseAction } from '../../ClaudeAgentSdk/hitl/questionPolicy';
 import { forbiddenProviderWebhookResponse } from '../../ClaudeAgentChannelShared/core/providerWebhookAuth';
+import { renderChannelApprovalConfirmation } from '../../ClaudeAgentChannelShared/core/channelApprovalConfirmation';
+import { buildChannelResumeFields } from '../../ClaudeAgentChannelShared/core/webhookHelpers';
 import {
 	isUnsignedQueryDecisionAllowed,
 	verifyChannelWebhook,
@@ -72,9 +74,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	const query = req.query as Record<string, unknown>;
 	const storeConfig = resolveStoreConfig(this);
 
-	const querySessionId = asNonEmptyString(query.sid);
-	const queryApprovedFingerprints = asNonEmptyString(query.afps);
-	const queryFingerprint = asNonEmptyString(query.fp);
 	const rawBody = this.getBodyData() as Record<string, unknown>;
 	const isProviderWebhook = hasWhatsAppProviderPayload(rawBody);
 
@@ -144,13 +143,13 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	if (!pending && hasExplicitRequestId) {
-		const hasSignedFallbackMetadata = Boolean(
-			querySessionId
-			|| queryApprovedFingerprints
-			|| queryFingerprint
-			|| asNonEmptyString(query.q),
+		// Resume fields are record-only now, so a fallback is meaningful only when the
+		// URL still carries a non-authorizing decision signal: question metadata (q) or
+		// an explicit approve/deny decision. sid/afps/fp are no longer trusted inputs.
+		const hasFallbackDecisionSignal = Boolean(
+			asNonEmptyString(query.q) || query.approved !== undefined,
 		);
-		if (!hasSignedFallbackMetadata) {
+		if (!hasFallbackDecisionSignal) {
 			return { webhookResponse: 'Error: Unknown or expired HITL requestId' };
 		}
 	}
@@ -170,6 +169,26 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 			return { webhookResponse: 'Error: Missing approved parameter' };
 		}
 
+		// CSRF: the verified provider inbound (HMAC-signed WhatsApp callback) is
+		// POST-equivalent and may consume. The unsigned query-derived path must NOT
+		// consume on GET — link scanners, unfurlers and browser prefetch issue
+		// automatic GETs against the out-of-band approve/deny URL. Render a
+		// confirmation page on GET; only a deliberate POST consumes the decision.
+		if (!isVerifiedProvider) {
+			if (method === 'GET') {
+				if (pending?.status === 'consumed') {
+					return { webhookResponse: 'This HITL request was already answered.' };
+				}
+				return renderChannelApprovalConfirmation(this, {
+					approved: inferredApproval,
+					toolName: pending?.toolName,
+				});
+			}
+			if (method !== 'POST') {
+				return { webhookResponse: 'Error: Approval decisions must be submitted with POST' };
+			}
+		}
+
 		const decisionKey = `approval:${inferredApproval ? 'approved' : 'denied'}`;
 		const consumeResult = await consumePendingWithDecision(
 			this,
@@ -178,9 +197,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 			storeConfig,
 			buildFallbackApprovalPendingRecord({
 				requestId,
-				sessionId: querySessionId,
-				approvedFingerprints: queryApprovedFingerprints,
-				fingerprint: queryFingerprint,
 				recipientId: inboundRecipientId,
 				providerMessageId: inbound.contextMessageId,
 			}),
@@ -197,15 +213,17 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		}
 
 		const consumedPending = consumeResult.record;
+		// Record-only: resume fields never come from the unsigned URL query.
+		const resume = buildChannelResumeFields(consumedPending);
 		const envelope = buildHitlApprovalResponseEnvelope({
 			requestId,
 			approved: inferredApproval,
 			channel: 'whatsapp',
 			decisionId: buildDecisionId(requestId, decisionKey),
 			decidedAt: new Date().toISOString(),
-			resumeSessionId: consumedPending?.sessionId ?? querySessionId,
-			approvedFingerprints: consumedPending?.approvedFingerprints ?? queryApprovedFingerprints,
-			fingerprint: consumedPending?.fingerprint ?? queryFingerprint,
+			resumeSessionId: resume.resumeSessionId,
+			approvedFingerprints: resume.approvedFingerprints,
+			fingerprint: resume.fingerprint,
 		});
 		assertHitlResponseEnvelope(envelope);
 
@@ -261,12 +279,12 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { webhookResponse: 'Error: Missing question answers in webhook payload' };
 	}
 
+	// CH-1: do NOT trust a submission-supplied responseAction. A leaked/forged URL
+	// or body could set ?responseAction=complete to force-finish the run. The action
+	// is derived from the question definition's per-option action only.
 	const responseAction = resolveQuestionResponseAction({
 		questions,
 		answers,
-		explicitResponseAction: typeof submission === 'object' && submission !== null
-			? (submission as Record<string, unknown>).responseAction
-			: undefined,
 	});
 	const decisionKey = buildQuestionDecisionKey(answers, responseAction);
 	const consumeResult = await consumePendingWithDecision(
@@ -276,8 +294,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		storeConfig,
 		buildFallbackQuestionPendingRecord({
 			requestId,
-			sessionId: querySessionId,
-			approvedFingerprints: queryApprovedFingerprints,
 			questions,
 			message: pending?.message,
 			recipientId: inboundRecipientId,
@@ -296,14 +312,16 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const consumedPending = consumeResult.record;
+	// Record-only: resume fields never come from the unsigned URL query.
+	const resume = buildChannelResumeFields(consumedPending);
 	const envelope = buildHitlQuestionResponseEnvelope({
 		requestId,
 		answers,
 		channel: 'whatsapp',
 		decisionId: buildDecisionId(requestId, decisionKey),
 		decidedAt: new Date().toISOString(),
-		resumeSessionId: consumedPending?.sessionId ?? querySessionId,
-		approvedFingerprints: consumedPending?.approvedFingerprints ?? queryApprovedFingerprints,
+		resumeSessionId: resume.resumeSessionId,
+		approvedFingerprints: resume.approvedFingerprints,
 		responseAction,
 	});
 	assertHitlResponseEnvelope(envelope);

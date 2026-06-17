@@ -23,15 +23,18 @@ import {
 import {
 	asNonEmptyString,
 	normalizeRawAnswers,
+	parseApprovalDecision,
 	parseQuestionsFromQuery,
 	toQuestionFormDefinition,
 } from '../../ClaudeAgentChannelShared/core/webhookRuntime';
 import {
+	buildChannelResumeFields,
 	buildFallbackApprovalPendingRecord,
 	buildFallbackQuestionPendingRecord,
 	buildWorkflowData,
 	resolveQuestionAnswer,
 } from '../../ClaudeAgentChannelShared/core/webhookHelpers';
+import { renderChannelApprovalConfirmation } from '../../ClaudeAgentChannelShared/core/channelApprovalConfirmation';
 import { forbiddenProviderWebhookResponse } from '../../ClaudeAgentChannelShared/core/providerWebhookAuth';
 import {
 	isUnsignedQueryDecisionAllowed,
@@ -231,30 +234,37 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const pending = await getPending(this, requestId, storeConfig);
-	const querySessionId = asNonEmptyString(query.sid);
-	const queryApprovedFingerprints = asNonEmptyString(query.afps);
-	const queryFingerprint = asNonEmptyString(query.fp);
 
 	if (!pending) {
-		const hasSignedFallbackMetadata = Boolean(
-			querySessionId
-			|| queryApprovedFingerprints
-			|| queryFingerprint
+		// Query metadata is never authority. When there is no persisted record we can
+		// only proceed if the request is itself actionable: an approval decision, or
+		// question metadata to render a form. Security-relevant resume fields are
+		// resolved from the record only (buildChannelResumeFields), never the query.
+		const hasActionableRequest = Boolean(
+			query.approved !== undefined
 			|| asNonEmptyString(query.q),
 		);
-		if (!hasSignedFallbackMetadata) {
+		if (!hasActionableRequest) {
 			return { webhookResponse: 'Error: Unknown or expired HITL requestId' };
 		}
 	}
 
 	if (query.approved !== undefined || pending?.kind === 'approval') {
-		const approved = query.approved === 'true'
-			? true
-			: query.approved === 'false'
-				? false
-				: undefined;
+		const approved = parseApprovalDecision(query.approved);
 		if (typeof approved !== 'boolean') {
 			return { webhookResponse: 'Error: Missing approved parameter' };
+		}
+
+		// CSRF: a GET must not consume. Render a confirmation page; only the
+		// explicit POST (a deliberate button click) consumes the decision.
+		if (method === 'GET') {
+			if (pending?.status === 'consumed') {
+				return { webhookResponse: 'This HITL request was already answered.' };
+			}
+			return renderChannelApprovalConfirmation(this, { approved, toolName: pending?.toolName });
+		}
+		if (method !== 'POST') {
+			return { webhookResponse: 'Error: Approval decisions must be submitted with POST' };
 		}
 
 		const decisionKey = `approval:${approved ? 'approved' : 'denied'}`;
@@ -265,9 +275,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 			storeConfig,
 			buildFallbackApprovalPendingRecord({
 				requestId,
-				sessionId: querySessionId,
-				approvedFingerprints: queryApprovedFingerprints,
-				fingerprint: queryFingerprint,
 				channel: 'telegram',
 			}),
 		);
@@ -281,15 +288,17 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		}
 
 		const consumedPending = consumeResult.record;
+		// Record-only: resume fields never come from the unsigned URL query.
+		const resume = buildChannelResumeFields(consumedPending);
 		const envelope = buildHitlApprovalResponseEnvelope({
 			requestId,
 			approved,
 			channel: 'telegram',
 				decisionId: buildChannelReplyDecisionId(requestId, decisionKey),
 			decidedAt: new Date().toISOString(),
-			resumeSessionId: consumedPending?.sessionId ?? querySessionId,
-			approvedFingerprints: consumedPending?.approvedFingerprints ?? queryApprovedFingerprints,
-			fingerprint: consumedPending?.fingerprint ?? queryFingerprint,
+			resumeSessionId: resume.resumeSessionId,
+			approvedFingerprints: resume.approvedFingerprints,
+			fingerprint: resume.fingerprint,
 		});
 		assertHitlResponseEnvelope(envelope);
 
@@ -355,8 +364,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		storeConfig,
 		buildFallbackQuestionPendingRecord({
 			requestId,
-			sessionId: querySessionId,
-			approvedFingerprints: queryApprovedFingerprints,
 			questions,
 			message: pending?.message,
 			channel: 'telegram',
@@ -372,14 +379,16 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const consumedPending = consumeResult.record;
+	// Record-only: resume fields never come from the unsigned URL query.
+	const resume = buildChannelResumeFields(consumedPending);
 	const envelope = buildHitlQuestionResponseEnvelope({
 		requestId,
 		answers,
 		channel: 'telegram',
 		decisionId: buildChannelReplyDecisionId(requestId, decisionKey),
 		decidedAt: new Date().toISOString(),
-		resumeSessionId: consumedPending?.sessionId ?? querySessionId,
-		approvedFingerprints: consumedPending?.approvedFingerprints ?? queryApprovedFingerprints,
+		resumeSessionId: resume.resumeSessionId,
+		approvedFingerprints: resume.approvedFingerprints,
 		responseAction,
 	});
 	assertHitlResponseEnvelope(envelope);

@@ -12,18 +12,20 @@ import {
 } from '../../ClaudeAgentSdk/webhook/questionForm';
 import { resolveQuestionResponseAction } from '../../ClaudeAgentSdk/hitl/questionPolicy';
 import {
-	asNonEmptyString,
 	normalizeRawAnswers,
+	parseApprovalDecision,
 	parseQuestionsFromQuery,
 	toQuestionFormDefinition,
 } from '../../ClaudeAgentChannelShared/core/webhookRuntime';
 import {
+	buildChannelResumeFields,
 	buildFallbackApprovalPendingRecord,
 	buildFallbackQuestionPendingRecord,
 	buildWorkflowData,
 	normalizeAnswersForDecision,
 	resolveQuestionAnswer,
 } from '../../ClaudeAgentChannelShared/core/webhookHelpers';
+import { renderChannelApprovalConfirmation } from '../../ClaudeAgentChannelShared/core/channelApprovalConfirmation';
 import { forbiddenProviderWebhookResponse } from '../../ClaudeAgentChannelShared/core/providerWebhookAuth';
 import {
 	isUnsignedQueryDecisionAllowed,
@@ -193,12 +195,25 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const pending = getPending(this, requestId);
-	const querySessionId = asNonEmptyString(query.sid);
-	const queryApprovedFingerprints = asNonEmptyString(query.afps);
-	const queryFingerprint = asNonEmptyString(query.fp);
 
 	if (query.approved !== undefined || pending?.kind === 'approval') {
-		const approved = query.approved === 'true';
+		const approved = parseApprovalDecision(query.approved);
+		if (typeof approved !== 'boolean') {
+			return { webhookResponse: 'Error: Missing approved parameter' };
+		}
+
+		// CSRF: a GET must not consume. Render a confirmation page; only the
+		// explicit POST (a deliberate button click) consumes the decision.
+		if (method === 'GET') {
+			if (pending?.status === 'consumed') {
+				return { webhookResponse: 'This HITL request was already answered.' };
+			}
+			return renderChannelApprovalConfirmation(this, { approved, toolName: pending?.toolName });
+		}
+		if (method !== 'POST') {
+			return { webhookResponse: 'Error: Approval decisions must be submitted with POST' };
+		}
+
 		const decisionKey = buildChannelReplyDecisionKey({
 			kind: 'approval',
 			decisionType: approved ? 'approve' : 'deny',
@@ -210,9 +225,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 			decisionKey,
 			buildFallbackApprovalPendingRecord({
 				requestId,
-				sessionId: querySessionId,
-				approvedFingerprints: queryApprovedFingerprints,
-				fingerprint: queryFingerprint,
 				channel: 'slack',
 			}),
 		);
@@ -226,15 +238,17 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		}
 
 		const consumedPending = consumeResult.record;
+		// Record-only: resume fields never come from the unsigned URL query.
+		const resume = buildChannelResumeFields(consumedPending);
 		const envelope = buildHitlApprovalResponseEnvelope({
 			requestId,
 			approved,
 			channel: 'slack',
 			decisionId: buildChannelReplyDecisionId(requestId, decisionKey),
 			decidedAt: new Date().toISOString(),
-			resumeSessionId: consumedPending?.sessionId ?? querySessionId,
-			approvedFingerprints: consumedPending?.approvedFingerprints ?? queryApprovedFingerprints,
-			fingerprint: consumedPending?.fingerprint ?? queryFingerprint,
+			resumeSessionId: resume.resumeSessionId,
+			approvedFingerprints: resume.approvedFingerprints,
+			fingerprint: resume.fingerprint,
 		});
 		assertHitlResponseEnvelope(envelope);
 
@@ -299,8 +313,6 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		decisionKey,
 		buildFallbackQuestionPendingRecord({
 			requestId,
-			sessionId: querySessionId,
-			approvedFingerprints: queryApprovedFingerprints,
 			questions,
 			message: pending?.message,
 			channel: 'slack',
@@ -315,14 +327,16 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const consumedPending = consumeResult.record;
+	// Record-only: resume fields never come from the unsigned URL query.
+	const resume = buildChannelResumeFields(consumedPending);
 	const envelope = buildHitlQuestionResponseEnvelope({
 		requestId,
 		answers,
 		channel: 'slack',
 		decisionId: buildChannelReplyDecisionId(requestId, decisionKey),
 		decidedAt: new Date().toISOString(),
-		resumeSessionId: consumedPending?.sessionId ?? querySessionId,
-		approvedFingerprints: consumedPending?.approvedFingerprints ?? queryApprovedFingerprints,
+		resumeSessionId: resume.resumeSessionId,
+		approvedFingerprints: resume.approvedFingerprints,
 		responseAction,
 	});
 	assertHitlResponseEnvelope(envelope);
