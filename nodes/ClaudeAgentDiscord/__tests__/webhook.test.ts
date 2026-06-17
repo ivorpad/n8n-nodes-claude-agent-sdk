@@ -227,6 +227,84 @@ describe('ClaudeAgentDiscord webhook', () => {
 		expect(html).toContain('Submit Response');
 	});
 
+	it('GET carrying field-* params does NOT consume the question (renders form / no workflowData)', async () => {
+		// CSRF / safe-method: a GET whose query carries field-* answers (issued by a
+		// link scanner, unfurler, or browser prefetch following the response URL) must
+		// render the form and consume NOTHING. The answers must never be read from the
+		// query — only an explicit POST submits.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_webhook_question_csrf_1', 'field-0': '["Summary"]' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_webhook_question_csrf_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_webhook_question_csrf_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		// Nothing consumed: no resume envelope emitted, just a rendered form page.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+		expect(response.send).toHaveBeenCalledTimes(1);
+		const html = response.send.mock.calls[0][0] as string;
+		expect(html).toContain('<form');
+		expect(html).toContain('Submit Response');
+
+		// The pending record is still pending — a GET (even with field-* params) never consumes.
+		expect(getPending(context, 'req_webhook_question_csrf_1')?.status).toBe('pending');
+	});
+
+	it('PUT carrying field-* params does NOT consume the question', async () => {
+		// Any non-POST method must be treated as a safe method: no consume.
+		const staticData: Record<string, unknown> = {};
+		const { context } = createWebhookContext({
+			// PUT is not a valid form method here; the helper types method narrowly,
+			// so cast through the public union for this adversarial case.
+			method: 'PUT' as unknown as 'GET',
+			query: { requestId: 'req_webhook_question_csrf_put_1', 'field-0': '["Summary"]' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_webhook_question_csrf_put_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_webhook_question_csrf_put_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		// Nothing consumed: no resume envelope; record stays pending.
+		expect(result.workflowData).toBeUndefined();
+		expect(getPending(context, 'req_webhook_question_csrf_put_1')?.status).toBe('pending');
+	});
+
 	it('returns strict question envelope on POST submit', async () => {
 		const staticData: Record<string, unknown> = {};
 		const { context, response } = createWebhookContext({

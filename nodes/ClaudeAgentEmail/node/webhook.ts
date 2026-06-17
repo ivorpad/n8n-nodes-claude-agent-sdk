@@ -123,9 +123,8 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const questions = pending?.questions ?? parseQuestionsFromQuery(query.q);
-	const hasFieldParams = Object.keys(query).some((key) => key.startsWith('field-'));
 
-	if (method === 'GET' && !hasFieldParams) {
+	if (method !== 'POST') {
 		if (questions.length === 0) {
 			return {
 				webhookResponse:
@@ -146,10 +145,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { noWebhookResponse: true };
 	}
 
-	const submission =
-		method === 'POST'
-			? postSubmission
-			: query;
+	const submission = postSubmission;
 
 	const answers =
 		questions.length > 0

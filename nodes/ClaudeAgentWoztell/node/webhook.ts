@@ -146,9 +146,12 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const questions = pending?.questions ?? parseQuestionsFromQuery(query.q);
-	const hasFieldParams = Object.keys(query).some((key) => key.startsWith('field-'));
 
-	if (method === 'GET' && !hasFieldParams) {
+	// CSRF: only an explicit POST may consume. EVERY non-POST request (GET/HEAD/PUT/...)
+	// renders the form (or the missing-question error) and returns WITHOUT consuming,
+	// even when field-* query params are present. A link scanner/unfurler/prefetch must
+	// never auto-answer the question by carrying answers in the query string.
+	if (method !== 'POST') {
 		if (questions.length === 0) {
 			return {
 				webhookResponse:
@@ -169,11 +172,13 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { noWebhookResponse: true };
 	}
 
+	// Control reaches here only on POST (every non-POST returned above), so answers
+	// come from the POST body ONLY — never the unsigned query string.
 	const rawBody = this.getBodyData() as Record<string, unknown>;
 	const submission =
-		method === 'POST' && rawBody && typeof rawBody === 'object'
+		rawBody && typeof rawBody === 'object'
 			? ((rawBody.data as Record<string, unknown>) ?? rawBody)
-			: query;
+			: {};
 
 	const answers =
 		questions.length > 0

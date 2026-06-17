@@ -222,4 +222,86 @@ describe('ClaudeAgentWoztell webhook', () => {
 		const stillPending = await getPending(context, 'req_woztell_confirm_1', { backend: 'staticData' });
 		expect(stillPending?.status).toBe('pending');
 	});
+
+	it('GET carrying field-* params does NOT consume the question (renders form / no workflowData)', async () => {
+		// CSRF: a GET (link scanner / unfurler / prefetch) that smuggles answers in the
+		// query string as field-* params must render the form and consume NOTHING.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_woztell_question_get_1', 'field-0': 'Summary' },
+			nodeParameters: { replyHandlingMode: 'waitForReply' },
+			staticData,
+		});
+
+		await savePending(context, {
+			requestId: 'req_woztell_question_get_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_woztell_question_get_1',
+			message: 'Please choose an action.',
+			questions: [
+				{
+					question: 'What should I do?',
+					options: [{ label: 'Summary' }, { label: 'Detail' }],
+				},
+			],
+			channel: 'woztell',
+		}, { backend: 'staticData' });
+
+		const result = await webhook.call(context);
+
+		// The form is rendered and the agent is NOT resumed.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+
+		// It rendered the question form, not a JSON acknowledgement.
+		const sentHtml = response.send.mock.calls[0]?.[0] as string;
+		expect(sentHtml).toMatch(/<form[^>]*method="POST"/i);
+		expect(sentHtml).toMatch(/What should I do\?/);
+
+		// The forged answer was NOT consumed: the record is still pending.
+		const stillPending = await getPending(context, 'req_woztell_question_get_1', { backend: 'staticData' });
+		expect(stillPending?.status).toBe('pending');
+		expect(stillPending?.consumedDecisionKey).toBeUndefined();
+	});
+
+	it('PUT carrying field-* params does NOT consume the question (non-POST is never a decision)', async () => {
+		// Any non-POST method (HEAD/PUT/...) must render the form and consume NOTHING.
+		const staticData: Record<string, unknown> = {};
+		const { context } = createWebhookContext({
+			method: 'PUT' as 'GET',
+			query: { requestId: 'req_woztell_question_put_1', 'field-0': 'Summary' },
+			nodeParameters: { replyHandlingMode: 'waitForReply' },
+			staticData,
+		});
+
+		await savePending(context, {
+			requestId: 'req_woztell_question_put_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_woztell_question_put_1',
+			message: 'Please choose an action.',
+			questions: [
+				{
+					question: 'What should I do?',
+					options: [{ label: 'Summary' }, { label: 'Detail' }],
+				},
+			],
+			channel: 'woztell',
+		}, { backend: 'staticData' });
+
+		const result = await webhook.call(context);
+
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+
+		const stillPending = await getPending(context, 'req_woztell_question_put_1', { backend: 'staticData' });
+		expect(stillPending?.status).toBe('pending');
+		expect(stillPending?.consumedDecisionKey).toBeUndefined();
+	});
 });

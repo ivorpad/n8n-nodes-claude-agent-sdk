@@ -9,7 +9,7 @@ import {
 } from '../../ClaudeAgentSdk/webhook/questionForm';
 
 function createWebhookContext(args: {
-	method: 'GET' | 'POST';
+	method: 'GET' | 'POST' | 'HEAD' | 'PUT';
 	query: Record<string, unknown>;
 	body?: Record<string, unknown>;
 	staticData: Record<string, unknown>;
@@ -351,5 +351,85 @@ describe('ClaudeAgentGmail webhook', () => {
 		expect(payload.resumeSessionId).toBeUndefined();
 		expect(payload.approvedFingerprints).toBeUndefined();
 		expect(payload.fingerprint).toBeUndefined();
+	});
+
+	it('GET carrying field-* params does NOT consume the question (renders form / no workflowData)', async () => {
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			// Safe-method GET that smuggles answers in the query — a link scanner /
+			// unfurler / prefetch hitting this URL must NOT auto-answer the question.
+			query: { requestId: 'req_webhook_question_get_csrf_1', 'field-0': 'Summary' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_webhook_question_get_csrf_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_webhook_question_get_csrf_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [
+						{ label: 'Summary', description: 'Brief overview' },
+						{ label: 'Detailed', description: 'Full breakdown' },
+					],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		// Non-POST renders the form and consumes NOTHING: no resume envelope.
+		expect(result.workflowData).toBeUndefined();
+		expect(result.noWebhookResponse).toBe(true);
+		// The question is still answerable — the field-* query was ignored, not consumed.
+		expect(getPending(context, 'req_webhook_question_get_csrf_1')?.status).toBe('pending');
+
+		// The form HTML was rendered (the safe, non-consuming response).
+		expect(response.send).toHaveBeenCalledTimes(1);
+		const html = response.send.mock.calls[0][0] as string;
+		expect(html).toContain('<form');
+		expect(html).toContain('Submit Response');
+	});
+
+	it('non-POST (PUT) carrying field-* params does NOT consume the question', async () => {
+		const staticData: Record<string, unknown> = {};
+		const { context } = createWebhookContext({
+			method: 'PUT',
+			query: { requestId: 'req_webhook_question_put_csrf_1', 'field-0': 'Summary' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_webhook_question_put_csrf_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_webhook_question_put_csrf_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [
+						{ label: 'Summary', description: 'Brief overview' },
+						{ label: 'Detailed', description: 'Full breakdown' },
+					],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		// Any non-POST method is non-consuming: no resume envelope, record untouched.
+		expect(result.workflowData).toBeUndefined();
+		expect(getPending(context, 'req_webhook_question_put_csrf_1')?.status).toBe('pending');
 	});
 });

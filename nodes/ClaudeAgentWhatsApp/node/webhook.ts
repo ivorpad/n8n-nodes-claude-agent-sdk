@@ -234,9 +234,12 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const questions = pending?.questions ?? parseQuestionsFromQuery(query.q);
-	const hasFieldParams = Object.keys(query).some((key) => key.startsWith('field-'));
 
-	if (method === 'GET' && !hasFieldParams && !inbound.textAnswer && !inbound.selectedLabel) {
+	// CSRF / safe-method: any non-POST request renders the form (or the missing-question
+	// error) and returns WITHOUT consuming, even when field-* query params are present.
+	// Link scanners, unfurlers and browser prefetch issue automatic GET/HEAD requests
+	// against the out-of-band response URL; only a deliberate POST may answer/consume.
+	if (method !== 'POST') {
 		if (questions.length === 0) {
 			return {
 				webhookResponse:
@@ -258,9 +261,11 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	let answers = buildQuestionAnswersFromInbound({ pending, inbound });
-	const submission = method === 'POST' && rawBody && typeof rawBody === 'object'
+	// Control is guaranteed to be POST here; answers come from the POST body ONLY,
+	// never from the query (a non-POST never reaches this point).
+	const submission = rawBody && typeof rawBody === 'object'
 		? (rawBody.data as Record<string, unknown> ?? rawBody)
-		: query;
+		: ({} as Record<string, unknown>);
 	if (Object.keys(answers).length === 0) {
 		answers = questions.length > 0
 			? parseQuestionAnswers(submission, toQuestionFormDefinition(questions))

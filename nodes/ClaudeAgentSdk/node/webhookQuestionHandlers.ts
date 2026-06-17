@@ -1,12 +1,13 @@
 import type { INodeExecutionData, IWebhookFunctions, IWebhookResponseData } from 'n8n-workflow';
 
-import { buildQuestionFormHtml, FORM_CSP, parseQuestionAnswers, parseQuestionSubmission } from '../webhook/questionForm';
+import { buildQuestionFormHtml, FORM_CSP, parseQuestionSubmission } from '../webhook/questionForm';
 import { HITL_CONTRACT_VERSION } from '../hitl/contract';
 import type { HitlInteractionRecord, HitlInteractionStore } from '../hitl/interactionStore';
 import {
 	buildChannelReplyDecisionId,
 	buildChannelReplyDecisionKey,
 } from '../../ClaudeAgentChannelShared/core/channelReplyContract';
+import { isN8nQueueMode } from '../../ClaudeAgentChannelShared/core/queueMode';
 import {
 	type WebhookQuery,
 	type WebhookQuestion,
@@ -84,31 +85,10 @@ export async function handleGetQuestion(
 ): Promise<IWebhookResponseData> {
 	const { ctx, query, storedQuestions } = args;
 
-	const queryRecord = ctx.getRequestObject().query as Record<string, unknown>;
-	const hasFieldParams = Object.keys(queryRecord).some((k) => k.startsWith('field-'));
-
-	if (hasFieldParams) {
-		try {
-			const questions = storedQuestions ?? parseQuestionsFromEncodedQuery(query.q);
-			const answers = questions.length > 0
-				? parseQuestionAnswers(queryRecord, questions)
-				: Object.fromEntries(
-					Object.entries(queryRecord).filter(([key]) => key.startsWith('field-')),
-				) as Record<string, string | string[]>;
-
-			return consumeAndReturnQuestion({
-				...args,
-				answers,
-				isFormSubmission: false,
-				explicitResponseAction: queryRecord.responseAction,
-			});
-		} catch (error) {
-			// eslint-disable-next-line no-console
-			console.error('[Claude Agent SDK] Failed to parse GET question answers:', error);
-			return { webhookResponse: 'Error: Failed to parse question answers' };
-		}
-	}
-
+	// CSRF: a GET must NEVER consume the answer. Link scanners, unfurlers and
+	// browser prefetch issue automatic GETs against the resume URL — including
+	// ones that carry field-* params. A GET therefore always renders the form
+	// (which POSTs the answers back); only the POST consumes (handlePostQuestion).
 	const questions = storedQuestions ?? parseQuestionsFromEncodedQuery(query.q);
 	if (questions.length > 0) {
 		try {
@@ -145,12 +125,9 @@ export async function handlePostQuestion(
 	const questions = storedQuestions ?? parseQuestionsFromEncodedQuery(query.q);
 
 	let answers: Record<string, string | string[]>;
-	let responseAction: 'resume' | 'complete' | undefined;
 	if (hasFormFields && questions.length > 0) {
 		try {
-			const parsed = parseQuestionSubmission(body, questions);
-			answers = parsed.answers;
-			responseAction = parsed.responseAction;
+			answers = parseQuestionSubmission(body, questions).answers;
 		} catch (error) {
 			// eslint-disable-next-line no-console
 			console.error('[Claude Agent SDK] Failed to parse form answers:', error);
@@ -168,7 +145,11 @@ export async function handlePostQuestion(
 		...args,
 		answers,
 		isFormSubmission: hasFormFields,
-		explicitResponseAction: responseAction ?? body.responseAction,
+		// CH-1: do NOT trust a caller-supplied responseAction (query or body). A
+		// leaked/forwarded resume URL could pass responseAction=complete to force
+		// the agent loop to terminate. The action is derived from the persisted
+		// question options only (resolveQuestionControlAction).
+		explicitResponseAction: undefined,
 	});
 }
 
@@ -208,7 +189,14 @@ async function consumeAndReturnQuestion(
 			decidedAt: Date.parse(decidedAt), channel: 'webhook',
 			answers, responseAction,
 		})
-		: { status: consumeWebhookDecision(ctx, requestId, decisionKey) as 'accepted' | 'duplicate' | 'conflict' };
+		: isN8nQueueMode()
+			? { status: 'missing' as const }
+			: {
+				status: consumeWebhookDecision(ctx, requestId, decisionKey) as
+					| 'accepted'
+					| 'duplicate'
+					| 'conflict',
+			};
 
 	if (consumeResult.status === 'duplicate' && isStreamFormat && effectiveStreamKey) {
 		await attachStreamResponse({ ctx, query, streamKey: effectiveStreamKey, requireExistingState: false });

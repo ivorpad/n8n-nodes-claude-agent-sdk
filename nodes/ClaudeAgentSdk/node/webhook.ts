@@ -8,6 +8,7 @@ import { parseApprovalDecision } from '../../ClaudeAgentChannelShared/core/webho
 import { FORM_CSP, buildApprovalConfirmationHtml } from '../webhook/questionForm';
 import { handlePostApproval } from './webhookApprovalHandlers';
 import { type WebhookQuery, attachStreamResponse, resolveStreamKey } from './webhookHelpers';
+import { isNonceFormatStreamKey } from '../streaming/streamKey';
 import { handleGetQuestion, handlePostQuestion } from './webhookQuestionHandlers';
 
 type ReadNodeParameter = (name: string, itemIndex: number, defaultValue?: unknown) => unknown;
@@ -74,7 +75,12 @@ async function handleReplayOnlyRequest(args: {
 	request: PreparedWebhookRequest;
 }): Promise<IWebhookResponseData | undefined> {
 	const { ctx, request } = args;
-	if (!request.streamKey || !isReplayOnlyRequest(request)) {
+	// Replay is a capability gated by the unguessable nonce in the key. Refuse to
+	// replay any key that is not nonce-format — legacy pre-nonce keys
+	// (stream:<exec>:<idx>) and a requestId-derived key are enumerable, so a
+	// replay request bearing one falls through to normal handling (and is
+	// rejected as a non-replay request) instead of streaming another execution.
+	if (!request.streamKey || !isNonceFormatStreamKey(request.streamKey) || !isReplayOnlyRequest(request)) {
 		return undefined;
 	}
 

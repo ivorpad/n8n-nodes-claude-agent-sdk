@@ -679,4 +679,87 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		expect(payload.fingerprint).toBeUndefined();
 	});
 
+	it('GET carrying field-* params does NOT consume the question (renders form / no workflowData)', async () => {
+		// CSRF / safe-method: a GET (or any non-POST) carrying field-* query params must
+		// render the form and return WITHOUT consuming. A link scanner / unfurler /
+		// prefetch hitting the response URL with answers in the query must NOT auto-answer.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_wa_get_field_no_consume_1', type: 'question', 'field-0': '["Summary"]' },
+			staticData,
+		});
+
+		await savePending(context, {
+			requestId: 'req_wa_get_field_no_consume_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_wa_get_field_no_consume_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		}, { backend: 'staticData' });
+
+		const result = await webhook.call(context);
+
+		// Nothing consumed: the GET rendered the form instead of answering.
+		expect(result.workflowData).toBeUndefined();
+		expect(result.noWebhookResponse).toBe(true);
+		expect(response.send).toHaveBeenCalledTimes(1);
+		const html = response.send.mock.calls[0][0] as string;
+		expect(html).toContain('<form');
+
+		// The decision must still be pending - the GET did not consume it.
+		const stillPending = await getPending(context, 'req_wa_get_field_no_consume_1', { backend: 'staticData' });
+		expect(stillPending?.status).toBe('pending');
+	});
+
+	it('PUT carrying field-* params does NOT consume the question', async () => {
+		// Any non-POST verb (here a PUT) must not consume; the submission must never be
+		// read from the query.
+		const staticData: Record<string, unknown> = {};
+		const { context } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_wa_put_field_no_consume_1', type: 'question', 'field-0': '["Summary"]' },
+			staticData,
+		});
+		// Force a non-GET, non-POST verb to prove the guard keys off `method !== 'POST'`.
+		(context.getRequestObject as unknown as { mockReturnValue: (v: unknown) => void }).mockReturnValue({
+			method: 'PUT',
+			query: { requestId: 'req_wa_put_field_no_consume_1', type: 'question', 'field-0': '["Summary"]' },
+			headers: {},
+			rawBody: undefined,
+		});
+
+		await savePending(context, {
+			requestId: 'req_wa_put_field_no_consume_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_wa_put_field_no_consume_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		}, { backend: 'staticData' });
+
+		const result = await webhook.call(context);
+
+		expect(result.workflowData).toBeUndefined();
+		const stillPending = await getPending(context, 'req_wa_put_field_no_consume_1', { backend: 'staticData' });
+		expect(stillPending?.status).toBe('pending');
+	});
+
 });

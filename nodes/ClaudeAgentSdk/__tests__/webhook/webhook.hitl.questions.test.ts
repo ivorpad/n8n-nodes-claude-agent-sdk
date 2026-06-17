@@ -191,27 +191,37 @@ describe('webhook() — HITL question/form regression', () => {
 
 	// ─── GET question answer via field params ───────────────────────────
 
-	it('GET with field params and no q falls back to raw field parsing', async () => {
+	it('GET with field params does NOT consume the question (CSRF) — renders the form instead', async () => {
+		// Security regression: a GET carrying field-* params must never auto-answer
+		// the question. Link scanners / unfurlers / prefetch issue automatic GETs.
 		const node = new ClaudeAgentSdk();
+		const questions = [
+			{ question: 'Name?', header: 'Name', options: [], multiSelect: false },
+		];
+		const q = Buffer.from(JSON.stringify(questions)).toString('base64');
 		const wf = makeWebhookContext({
 			method: 'GET',
 			query: {
 				requestId: 'req_raw_fields',
 				type: 'question',
+				q,
 				'field-name': 'Alice',
-				'field-role': 'Engineer',
 			},
 		});
 
 		const result = await node.webhook.call(wf);
-		const payload = (result.workflowData as any[])[0][0].json;
 
-		expect(payload.type).toBe('question_response');
-		expect(payload.answers['field-name']).toBe('Alice');
-		expect(payload.answers['field-role']).toBe('Engineer');
+		// No decision consumed: no resume payload emitted.
+		expect(result.workflowData).toBeUndefined();
+		expect(result.noWebhookResponse).toBe(true);
+		// A form was rendered instead (it POSTs the answer back).
+		const html = wf.res.send.mock.calls[0][0] as string;
+		expect(html).toMatch(/<form/i);
 	});
 
-	it('GET with terminal review option sets responseAction=complete', async () => {
+	it('POST with terminal review option sets responseAction=complete (option-derived)', async () => {
+		// The terminal action is legitimately derived from the question option's
+		// own action — not from a caller-supplied responseAction (see CH-1 below).
 		const node = new ClaudeAgentSdk();
 		const questions = [
 			{
@@ -227,13 +237,9 @@ describe('webhook() — HITL question/form regression', () => {
 		const q = Buffer.from(JSON.stringify(questions)).toString('base64');
 
 		const wf = makeWebhookContext({
-			method: 'GET',
-			query: {
-				requestId: 'req_terminal_get',
-				type: 'question',
-				q,
-				'field-Revisión': 'Está bien',
-			},
+			method: 'POST',
+			query: { requestId: 'req_terminal_post', type: 'question', q },
+			body: { 'field-Revisión': 'Está bien' },
 		});
 
 		const result = await node.webhook.call(wf);
@@ -241,6 +247,37 @@ describe('webhook() — HITL question/form regression', () => {
 
 		expect(payload.type).toBe('question_response');
 		expect(payload.responseAction).toBe('complete');
+	});
+
+	it('CH-1: ignores a caller-supplied responseAction=complete when no option carries that action', async () => {
+		// A leaked/forwarded resume URL must not be able to force the agent loop to
+		// terminate by passing responseAction=complete. The action derives ONLY from
+		// the question options; options with no action default to resume.
+		const node = new ClaudeAgentSdk();
+		const questions = [
+			{
+				question: 'Pick one',
+				header: 'Pick',
+				options: [
+					{ label: 'A', description: 'a' },
+					{ label: 'B', description: 'b' },
+				],
+				multiSelect: false,
+			},
+		];
+		const q = Buffer.from(JSON.stringify(questions)).toString('base64');
+
+		const wf = makeWebhookContext({
+			method: 'POST',
+			query: { requestId: 'req_ch1', type: 'question', q },
+			body: { 'field-Pick': 'A', responseAction: 'complete' },
+		});
+
+		const result = await node.webhook.call(wf);
+		const payload = (result.workflowData as any[])[0][0].json;
+
+		expect(payload.type).toBe('question_response');
+		expect(payload.responseAction).toBe('resume');
 	});
 
 	// ─── GET question form rendering ────────────────────────────────────

@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { IWebhookFunctions } from 'n8n-workflow';
 
 import { webhook } from '../node/webhook';
-import { savePending } from '../store/PendingSlackHitlStore';
+import { getPending, savePending } from '../store/PendingSlackHitlStore';
 import { buildApprovalConfirmationHtml } from '../../ClaudeAgentSdk/webhook/questionForm';
 
 function createWebhookContext(args: {
-	method: 'GET' | 'POST';
+	method: 'GET' | 'POST' | 'HEAD' | 'PUT';
 	query: Record<string, unknown>;
 	body?: Record<string, unknown>;
 	headers?: Record<string, string>;
@@ -219,6 +219,83 @@ describe('ClaudeAgentSlack webhook', () => {
 		const html = response.send.mock.calls[0][0] as string;
 		expect(html).toContain('<form');
 		expect(html).toContain('Submit Response');
+	});
+
+	it('GET carrying field-* params does NOT consume the question (renders form / no workflowData)', async () => {
+		// Link scanners, unfurlers and prefetch issue automatic GETs. A GET that carries
+		// field-* answer params in the query must render the form and consume NOTHING —
+		// only an explicit POST (deliberate form submit) may resume the agent.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_slack_get_field_no_consume_1', 'field-0': 'Summary' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_slack_get_field_no_consume_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_slack_get_field_no_consume_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		// Nothing consumed: the form is rendered out-of-band, no resume envelope emitted.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+		expect(response.send).toHaveBeenCalledTimes(1);
+		const html = response.send.mock.calls[0][0] as string;
+		expect(html).toContain('<form');
+		expect(html).toContain('Submit Response');
+
+		// The pending record is untouched — still awaiting a real answer.
+		expect(getPending(context, 'req_slack_get_field_no_consume_1')?.status).toBe('pending');
+	});
+
+	it('PUT carrying field-* params does NOT consume the question', async () => {
+		// Any non-POST method (HEAD/PUT/etc.) must be treated like a GET: render-only,
+		// never consume. This closes the GET-consume CSRF gap across all verbs.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'PUT',
+			query: { requestId: 'req_slack_put_no_consume_1', 'field-0': 'Summary' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_slack_put_no_consume_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_slack_put_no_consume_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		expect(result.workflowData).toBeUndefined();
+		expect(response.send).toHaveBeenCalledTimes(1);
+		// The pending record is untouched.
+		expect(getPending(context, 'req_slack_put_no_consume_1')?.status).toBe('pending');
 	});
 
 	it('returns strict question envelope on POST submit', async () => {

@@ -27,7 +27,7 @@ describe('webhook() replay routing', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		replayMocks.replayToResponse.mockResolvedValue({
-			streamKey: 'stream_123',
+			streamKey: 'stream:42:0:0123456789abcdef0123456789abcdef',
 			status: 'paused_hitl',
 			framesReplayed: 2,
 			lastSeq: 2,
@@ -39,7 +39,7 @@ describe('webhook() replay routing', () => {
 			detachLiveResponse: vi.fn(),
 		});
 		replayMocks.getStreamState.mockResolvedValue({
-			streamKey: 'stream_123',
+			streamKey: 'stream:42:0:0123456789abcdef0123456789abcdef',
 			status: 'paused_hitl',
 			lastSeq: 2,
 			nextSeq: 3,
@@ -68,7 +68,7 @@ describe('webhook() replay routing', () => {
 				method: 'GET',
 				query: {
 					format: 'stream',
-					streamKey: 'stream_123',
+					streamKey: 'stream:42:0:0123456789abcdef0123456789abcdef',
 					replay: 'true',
 					cursor: '4',
 				},
@@ -81,7 +81,7 @@ describe('webhook() replay routing', () => {
 		expect(result).toEqual({ noWebhookResponse: true });
 		expect(replayMocks.replayToResponse).toHaveBeenCalledWith(
 			{
-				streamKey: 'stream_123',
+				streamKey: 'stream:42:0:0123456789abcdef0123456789abcdef',
 				cursor: 4,
 				limit: undefined,
 				tailLive: true,
@@ -89,5 +89,25 @@ describe('webhook() replay routing', () => {
 			res,
 		);
 		expect(replayMocks.close).toHaveBeenCalledTimes(1);
+	});
+
+	it('refuses to replay a legacy enumerable (non-nonce) stream key', async () => {
+		// Security regression: a pre-nonce key `stream:<exec>:<idx>` is enumerable.
+		// A replay request bearing one must NOT reach the durable replay service.
+		const node = new ClaudeAgentSdk();
+		const res = { setHeader: vi.fn(), end: vi.fn(), send: vi.fn(), writableEnded: false };
+		const wf = {
+			getRequestObject: () => ({
+				method: 'GET',
+				query: { format: 'stream', streamKey: 'stream:1:0', replay: 'true' },
+			}),
+			getResponseObject: () => res,
+		} as any;
+
+		const result = await node.webhook.call(wf);
+
+		// Not routed to replay; falls through to normal handling and is rejected.
+		expect(replayMocks.replayToResponse).not.toHaveBeenCalled();
+		expect(result.webhookResponse).toContain('Missing requestId');
 	});
 });

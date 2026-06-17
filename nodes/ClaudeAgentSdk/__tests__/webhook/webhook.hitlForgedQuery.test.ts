@@ -40,6 +40,7 @@ interface JsonRecord {
 function makeWebhookContext(overrides: {
 	method: string;
 	query: Record<string, string>;
+	body?: Record<string, unknown>;
 	staticData?: Record<string, unknown>;
 }) {
 	const res = {
@@ -65,7 +66,7 @@ function makeWebhookContext(overrides: {
 		}),
 		getHeaderData: () => ({}),
 		getResponseObject: () => res,
-		getBodyData: () => ({}),
+		getBodyData: () => overrides.body ?? ({}),
 		getCredentials: vi.fn(async (name: string) => {
 			throw new Error(`Missing credential: ${name}`);
 		}),
@@ -297,15 +298,17 @@ describe('HITL forged resume query parameters (V1)', () => {
 			},
 		];
 		const q = Buffer.from(JSON.stringify(questions)).toString('base64');
+		// Consume via POST (a GET now renders the confirmation/form and never
+		// consumes); the forged afps lives in the unsigned query and must be ignored.
 		const wf = makeWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: {
 				requestId: 'req_forged_q_afps',
 				type: 'question',
 				q,
 				afps: FORGED_AFPS,
-				'field-Confirm': 'Yes',
 			},
+			body: { 'field-Confirm': 'Yes' },
 		});
 
 		const result = await node.webhook.call(wf);

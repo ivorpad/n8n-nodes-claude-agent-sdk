@@ -123,9 +123,12 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	}
 
 	const questions = pending?.questions ?? parseQuestionsFromQuery(query.q);
-	const hasFieldParams = Object.keys(query).some((key) => key.startsWith('field-'));
 
-	if (method === 'GET' && !hasFieldParams) {
+	// CSRF: any non-POST (GET/HEAD/PUT/...) MUST render the form (or the missing-
+	// definition error) and return WITHOUT consuming — mirrors the approval path.
+	// A GET carrying field-* query params must NEVER auto-answer the question, so a
+	// link scanner / unfurler / prefetch hitting the URL cannot resume the agent.
+	if (method !== 'POST') {
 		if (questions.length === 0) {
 			return {
 				webhookResponse:
@@ -146,10 +149,9 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { noWebhookResponse: true };
 	}
 
-	const submission =
-		method === 'POST'
-			? postSubmission
-			: query;
+	// Control is guaranteed to be POST here, so answers come from the POST body
+	// ONLY — never from the (unsigned, attacker-controllable) query string.
+	const submission = postSubmission;
 
 	const answers =
 		questions.length > 0

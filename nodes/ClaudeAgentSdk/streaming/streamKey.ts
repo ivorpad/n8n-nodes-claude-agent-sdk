@@ -32,3 +32,20 @@ export function buildDurableStreamKey(args: {
 	const token = args.token ?? randomBytes(16).toString('hex');
 	return `stream:${args.executionId}:${args.itemIndex}:${token}`;
 }
+
+/**
+ * Shape of a nonce-bearing durable stream key: `stream:<execId>:<itemIndex>:<32-hex-nonce>`.
+ */
+const NONCE_STREAM_KEY_RE = /^stream:[^:]+:\d+:[0-9a-f]{32}$/;
+
+/**
+ * Whether a stream key carries the unguessable 128-bit nonce. The public replay
+ * endpoint must accept ONLY nonce-format keys: legacy pre-nonce keys
+ * (`stream:<execId>:<itemIndex>`) and any caller-supplied requestId are
+ * enumerable, so a replay request bearing one is refused — this closes the
+ * enumeration hole even for streams persisted by a previously-deployed
+ * vulnerable build.
+ */
+export function isNonceFormatStreamKey(value: string | undefined): boolean {
+	return typeof value === 'string' && NONCE_STREAM_KEY_RE.test(value);
+}

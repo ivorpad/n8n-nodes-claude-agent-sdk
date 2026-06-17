@@ -196,6 +196,49 @@ describe('ClaudeAgentEmail webhook', () => {
 		expect(html).toContain('Submit Response');
 	});
 
+	it('GET carrying field-* params does NOT consume the question (renders form / no workflowData)', async () => {
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			// A link scanner / unfurler / prefetch hitting a URL that already
+			// carries the answers as query params must NOT auto-answer the question.
+			query: { requestId: 'req_webhook_question_csrf_1', 'field-0': '["Summary"]' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_webhook_question_csrf_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_webhook_question_csrf_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		// CSRF-safe: a non-POST never consumes the question.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+
+		// The form is rendered instead of the answers being consumed.
+		expect(response.send).toHaveBeenCalledTimes(1);
+		const html = response.send.mock.calls[0][0] as string;
+		expect(html).toContain('<form');
+		expect(html).toContain('Submit Response');
+
+		// The pending record is untouched (still 'pending', not 'consumed').
+		expect(getPending(context, 'req_webhook_question_csrf_1')?.status).toBe('pending');
+	});
+
 	it('returns strict question envelope on POST submit', async () => {
 		const staticData: Record<string, unknown> = {};
 		const { context, response } = createWebhookContext({

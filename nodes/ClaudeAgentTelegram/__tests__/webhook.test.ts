@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { IWebhookFunctions } from 'n8n-workflow';
 
 import { webhook } from '../node/webhook';
-import { savePending } from '../store/PendingTelegramHitlStore';
+import { getPending, savePending } from '../store/PendingTelegramHitlStore';
 import { buildApprovalConfirmationHtml } from '../../ClaudeAgentSdk/webhook/questionForm';
 
 function createWebhookContext(args: {
@@ -137,6 +137,69 @@ describe('ClaudeAgentTelegram webhook', () => {
 		const html = response.send.mock.calls[0][0] as string;
 		expect(html).toContain('<form');
 		expect(html).toContain('Submit Response');
+	});
+
+	it('GET carrying field-* params does NOT consume the question (renders form / no workflowData)', async () => {
+		// CSRF / safe-method: a link scanner, unfurler or prefetch issuing a GET with
+		// field-* query params must render the form and consume NOTHING. Only a
+		// deliberate POST may answer the question and resume the agent.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_webhook_question_csrf_1', 'field-0': '["Summary"]' },
+			staticData,
+		});
+
+		await savePending(context, {
+			requestId: 'req_webhook_question_csrf_1',
+			kind: 'question',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_webhook_question_csrf_1',
+			questions: [
+				{
+					question: 'How should output be formatted?',
+					header: 'Format',
+					options: [{ label: 'Summary', description: 'Brief overview' }],
+					multiSelect: false,
+				},
+			],
+		});
+
+		const result = await webhook.call(context);
+
+		// Nothing consumed: the form is rendered, no resume envelope is emitted.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+		expect(response.send).toHaveBeenCalledTimes(1);
+		const html = response.send.mock.calls[0][0] as string;
+		expect(html).toContain('<form');
+		expect(html).toContain('Submit Response');
+
+		// The pending record is untouched — still pending after the GET.
+		const stillPending = await getPending(context, 'req_webhook_question_csrf_1', {
+			backend: 'staticData',
+			tableName: 'claude_hitl_pending',
+		});
+		expect(stillPending?.status).toBe('pending');
+
+		// A PUT carrying field-* params likewise consumes nothing.
+		const { context: putContext, response: putResponse } = createWebhookContext({
+			method: 'PUT' as 'GET',
+			query: { requestId: 'req_webhook_question_csrf_1', 'field-0': '["Summary"]' },
+			staticData,
+		});
+		const putResult = await webhook.call(putContext);
+		expect(putResult.noWebhookResponse).toBe(true);
+		expect(putResult.workflowData).toBeUndefined();
+		expect(putResponse.send).toHaveBeenCalledTimes(1);
+
+		const stillPendingAfterPut = await getPending(context, 'req_webhook_question_csrf_1', {
+			backend: 'staticData',
+			tableName: 'claude_hitl_pending',
+		});
+		expect(stillPendingAfterPut?.status).toBe('pending');
 	});
 
 	it('returns strict question envelope on POST submit', async () => {
