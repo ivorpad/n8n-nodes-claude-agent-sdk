@@ -11,7 +11,7 @@ function withTempPackage(
 	files: string[],
 	callback: (packageJsonPath: string) => void,
 ): void {
-	const dir = mkdtempSync(join(tmpdir(), 'claude-code-peer-'));
+	const dir = mkdtempSync(join(tmpdir(), 'claude-code-package-'));
 	try {
 		for (const file of files) {
 			const filePath = join(dir, file);

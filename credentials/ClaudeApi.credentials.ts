@@ -51,7 +51,7 @@ export class ClaudeApi implements ICredentialType {
 				},
 			},
 			description:
-				'Optional absolute path to a custom Claude Code CLI binary. Leave empty to use the npm-installed @anthropic-ai/claude-code peer dependency. Requires a Claude Code login for the n8n runtime user.',
+				'Optional absolute path to a custom Claude Code CLI binary. Leave empty to use the npm-installed @anthropic-ai/claude-code dependency. Requires a Claude Code login for the n8n runtime user.',
 			placeholder: 'Auto-detected from npm install',
 		},
 	];

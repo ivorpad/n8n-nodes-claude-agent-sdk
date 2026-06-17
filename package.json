@@ -85,6 +85,7 @@
 	},
 	"dependencies": {
 		"@anthropic-ai/claude-agent-sdk": "^0.3.175",
+		"@anthropic-ai/claude-code": "^2.0.0",
 		"@anthropic-ai/sdk": "^0.100.1",
 		"@microsoft/agentmesh-sdk": "3.1.0",
 		"@modelcontextprotocol/sdk": "^1.29.0",
@@ -96,9 +97,6 @@
 		"safe-regex2": "^5.1.1",
 		"shell-quote": "^1.8.3",
 		"zod": "^4.3.6"
-	},
-	"peerDependencies": {
-		"@anthropic-ai/claude-code": "^2.0.0"
 	},
 	"overrides": {
 		"change-case": "4.1.2"

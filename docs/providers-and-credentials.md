@@ -21,9 +21,9 @@ Credential options:
 
 - **API Key**: stores an Anthropic API key and sends it as `ANTHROPIC_API_KEY`.
 - **Claude Code CLI (Subscription)**: uses the npm-installed
-  `@anthropic-ai/claude-code` peer dependency and relies on an existing
-  Claude Code login session for the n8n runtime user. Run `npx claude login`
-  from `~/.n8n/nodes` after installation.
+  `@anthropic-ai/claude-code` dependency and relies on an existing Claude Code
+  login session for the n8n runtime user. Run `npx claude login` from
+  `~/.n8n/nodes` after installation.
 
 The optional executable path field is only for custom Claude Code binaries. In
 the normal npm install path, leave it empty.

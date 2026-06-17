@@ -27,8 +27,8 @@ spawn /path/to/claude ENOENT
 
 Fix:
 
-1. Reinstall with npm so `@anthropic-ai/claude-code` is installed as the peer
-   dependency.
+1. Reinstall with npm so `@anthropic-ai/claude-code` is installed with the
+   community node.
 2. If using a custom binary, set the executable path in the
    `Claude Agent SDK Anthropic API` credential.
 3. Verify from the n8n runtime user:

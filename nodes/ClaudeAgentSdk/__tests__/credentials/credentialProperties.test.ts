@@ -16,7 +16,7 @@ describe('Credential properties', () => {
 		expect(alibabaProps.some((prop) => prop.name === 'executablePath')).toBe(false);
 	});
 
-	it('makes the Claude Code executable path an optional npm peer override', () => {
+	it('makes the Claude Code executable path an optional npm dependency override', () => {
 		const executablePath = new ClaudeApi().properties.find((prop) => prop.name === 'executablePath');
 
 		expect(executablePath).toMatchObject({

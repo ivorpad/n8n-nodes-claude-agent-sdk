@@ -71,7 +71,7 @@ export function getErrorMessage(error: unknown): string {
 		if (error.message?.includes('spawn') && error.message?.includes('ENOENT')) {
 			return (
 				'Failed to spawn Claude CLI. Ensure Claude Code is installed and accessible.\\n\\n' +
-				'Reinstall the community node with npm so @anthropic-ai/claude-code is installed as a peer dependency. ' +
+				'Reinstall the community node with npm so @anthropic-ai/claude-code is installed with it. ' +
 				'If you use a custom Claude binary, set the executable path in the Claude API credential.'
 			);
 		}
@@ -197,7 +197,7 @@ export function getErrorDescription(error: unknown): string | undefined {
 		}
 
 		if (error.message?.includes('spawn') && error.message?.includes('ENOENT')) {
-			return 'The Claude CLI binary was not found. Reinstall the community node with npm so @anthropic-ai/claude-code is installed as a peer dependency, or set a custom executable path in the Claude API credential.';
+			return 'The Claude CLI binary was not found. Reinstall the community node with npm so @anthropic-ai/claude-code is installed with it, or set a custom executable path in the Claude API credential.';
 		}
 
 		// Check for authentication errors

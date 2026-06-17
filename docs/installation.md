@@ -12,10 +12,10 @@ n8n. It is not designed for n8n Cloud or for n8n-verified-node constraints.
 - Optional Redis/Postgres services if you use those memory or durability
   features.
 
-This package declares `@anthropic-ai/claude-code` as an npm peer dependency.
-With normal npm installs, Claude Code is installed alongside the community node
-and the node auto-detects the peer package's `claude` binary. The credential
-path field is only an override for unusual custom binaries.
+This package declares `@anthropic-ai/claude-code` as an npm dependency. With
+normal npm installs, Claude Code is installed alongside the community node and
+the node auto-detects the package's `claude` binary. The credential path field
+is only an override for unusual custom binaries.
 
 ## Install From npm
 
@@ -34,9 +34,9 @@ cd ~/.n8n/nodes
 npm install n8n-nodes-claude-agent-sdk
 ```
 
-That single install is expected to install the peer `@anthropic-ai/claude-code`
-package as well. If you plan to authenticate with a Claude Code subscription,
-log in from the same runtime user and install directory:
+That single install is expected to install `@anthropic-ai/claude-code` as well.
+If you plan to authenticate with a Claude Code subscription, log in from the
+same runtime user and install directory:
 
 ```bash
 cd ~/.n8n/nodes

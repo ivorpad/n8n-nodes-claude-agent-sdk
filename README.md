@@ -63,8 +63,8 @@ Then install the generated `.tgz` in n8n's community-node directory. See
 
 For Local CLI execution:
 
-- install this package with npm so npm also installs the
-  `@anthropic-ai/claude-code` peer dependency,
+- install this package with npm so `@anthropic-ai/claude-code` is installed
+  alongside the community node,
 - configure provider credentials or a logged-in CLI session,
 - use Postgres Session Memory when queue-mode workers can touch the same
   `chatSessionId`.
