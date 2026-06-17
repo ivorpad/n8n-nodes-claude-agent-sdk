@@ -26,13 +26,23 @@ docker-compose.local.yml
 
 # Local agent/runtime state, private notes, and scraped research caches
 .agents/
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/canonical-types/
+!.claude/skills/canonical-types/**
+!.claude/skills/n8n-conventions/
+!.claude/skills/n8n-conventions/**
+!.claude/skills/typescript-best-practices/
+!.claude/skills/typescript-best-practices/**
+!.claude/skills/vitest-testing/
+!.claude/skills/vitest-testing/**
 .codex/
 .context/
 .firecrawl/
 .scratchpad/
 plans/
-skills/
+/skills/
 *.skill
 skills-lock.json
 
