@@ -8,6 +8,8 @@ uses host-level capabilities such as child processes, filesystem access,
 environment variables, the Claude CLI, webhooks, and optional Redis/Postgres
 services. It is not designed as an n8n Cloud-compatible or n8n-verified node.
 
+![The Claude Agent SDK node running an Execute Task in n8n — node parameters on the left, the completed run result in the output panel on the right](docs/images/claude-agent-sdk-node.png)
+
 ## Features
 
 - `Claude Agent SDK` node with **Execute Task** and **Generate Python SDK Script**
