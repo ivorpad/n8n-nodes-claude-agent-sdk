@@ -26,6 +26,8 @@ interface QuerySetupResult {
 	correlationId?: string;
 	apiProvider: string;
 	ollamaModel?: string;
+	liteLlmModel?: string;
+	codeMieModel?: string;
 	maxTurns: number;
 	treatAgentErrorsAsWorkflowErrors: boolean;
 	queryOptions: NodeQueryOptions;
@@ -36,7 +38,14 @@ export async function buildQuerySetup(args: {
 	execFunctions: IExecuteFunctions;
 	itemIndex: number;
 	options: ExecuteTaskOptions;
-	resolvedAuthMethod: 'apiCredentials' | 'cliSession' | 'openrouter' | 'ollama' | 'alibaba';
+	resolvedAuthMethod:
+		| 'apiCredentials'
+		| 'cliSession'
+		| 'openrouter'
+		| 'ollama'
+		| 'alibaba'
+		| 'litellm'
+		| 'codemie';
 	workingDirectory: string;
 	chatSessionId: string;
 	sessionMemory?: ISessionMemory;
@@ -108,6 +117,8 @@ export async function buildQuerySetup(args: {
 		correlationId: context.correlationId,
 		apiProvider: context.apiProvider,
 		ollamaModel: context.ollamaModel,
+		liteLlmModel: context.liteLlmModel,
+		codeMieModel: context.codeMieModel,
 		maxTurns: context.executionSettings.maxTurns,
 		treatAgentErrorsAsWorkflowErrors: context.executionSettings.treatAgentErrorsAsWorkflowErrors,
 		queryOptions,

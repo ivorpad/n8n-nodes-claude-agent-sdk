@@ -31,14 +31,21 @@ interface InstalledPluginsRegistry {
 	}>>;
 }
 
+interface PluginDiscoveryOptions {
+	installedPluginsRegistryPath?: string;
+}
+
 /**
  * Discover plugins from CLI registry and project-level .claude-plugin/ directory.
  *
  * Installed plugins are discovered first, then project-level plugin is appended
  * if it exists and doesn't duplicate an installed plugin by name.
  */
-export async function discoverPlugins(workingDirectory?: string): Promise<DiscoveredPlugin[]> {
-	const installedPlugins = await readInstalledPluginsRegistry();
+export async function discoverPlugins(
+	workingDirectory?: string,
+	options?: PluginDiscoveryOptions,
+): Promise<DiscoveredPlugin[]> {
+	const installedPlugins = await readInstalledPluginsRegistry(options);
 
 	const projectPlugin = workingDirectory
 		? await readProjectPlugin(workingDirectory)
@@ -56,8 +63,11 @@ export async function discoverPlugins(workingDirectory?: string): Promise<Discov
 /**
  * Parse the CLI installed_plugins.json registry and resolve plugin metadata.
  */
-export async function readInstalledPluginsRegistry(): Promise<DiscoveredPlugin[]> {
-	const registryPath = path.join(os.homedir(), '.claude', 'plugins', 'installed_plugins.json');
+export async function readInstalledPluginsRegistry(
+	options?: PluginDiscoveryOptions,
+): Promise<DiscoveredPlugin[]> {
+	const registryPath = options?.installedPluginsRegistryPath
+		?? path.join(os.homedir(), '.claude', 'plugins', 'installed_plugins.json');
 
 	let raw: string;
 	try {

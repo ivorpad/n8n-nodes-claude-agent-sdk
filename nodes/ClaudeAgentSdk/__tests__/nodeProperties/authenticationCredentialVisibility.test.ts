@@ -14,6 +14,7 @@ const PROVIDER_CREDENTIAL_TYPES = [
 	'openRouterApi',
 	'claudeAgentSdkOpenRouterApi',
 	'alibabaCodingPlanApi',
+	'claudeAgentSdkLiteLlmApi',
 ] as const;
 function getCredential(name: string): INodeCredentialDescription {
 	const credential = claudeAgentSdkDescription.credentials?.find((entry) => entry.name === name);
@@ -35,6 +36,16 @@ function isCredentialVisible(name: string, parameters: INodeParameters): boolean
 	return NodeHelpers.displayParameterPath(
 		parameters,
 		getCredential(name),
+		'',
+		{ typeVersion: 1 },
+		claudeAgentSdkDescription,
+	);
+}
+
+function isPropertyVisible(name: string, parameters: INodeParameters): boolean {
+	return NodeHelpers.displayParameterPath(
+		parameters,
+		getNodeProperty(name),
 		'',
 		{ typeVersion: 1 },
 		claudeAgentSdkDescription,
@@ -95,6 +106,7 @@ describe('authentication credential visibility', () => {
 		expect(isCredentialVisible('claudeApi', { authentication: 'cliSession' })).toBe(true);
 		expect(isCredentialVisible('openRouterApi', { authentication: 'openrouter' })).toBe(true);
 		expect(isCredentialVisible('alibabaCodingPlanApi', { authentication: 'alibaba' })).toBe(true);
+		expect(isCredentialVisible('claudeAgentSdkLiteLlmApi', { authentication: 'litellm' })).toBe(true);
 	});
 
 	it('resolves the selected provider credential and hides the others', () => {
@@ -136,6 +148,7 @@ describe('authentication credential visibility', () => {
 			'claudeApi',
 			'claudeAgentSdkOpenRouterApi',
 			'alibabaCodingPlanApi',
+			'claudeAgentSdkLiteLlmApi',
 		]) {
 			const visible = PROVIDER_CREDENTIAL_TYPES.filter((name) =>
 				isCredentialVisible(name, { authentication: selectable }),
@@ -228,6 +241,31 @@ describe('authentication credential visibility', () => {
 		expect(isCredentialVisible('httpBasicAuth', { hitlWebhookAuthentication: 'basicAuth' })).toBe(true);
 		expect(isCredentialVisible('httpHeaderAuth', { hitlWebhookAuthentication: 'headerAuth' })).toBe(true);
 		expect(isCredentialVisible('jwtAuth', { hitlWebhookAuthentication: 'jwtAuth' })).toBe(true);
+	});
+
+	it('shows LiteLLM model fields only for LiteLLM local CLI executions', () => {
+		const visibleParams = {
+			authentication: 'claudeAgentSdkLiteLlmApi',
+			operation: 'executeTask',
+			backendMode: 'localCli',
+		};
+
+		expect(isPropertyVisible('model', visibleParams)).toBe(false);
+		expect(getNodeProperty('liteLlmModel').required).not.toBe(true);
+		expect(isPropertyVisible('liteLlmModel', visibleParams)).toBe(true);
+		expect(isPropertyVisible('liteLlmModelAlias', visibleParams)).toBe(true);
+		expect(isPropertyVisible('model', {
+			...visibleParams,
+			authentication: 'claudeApi',
+		})).toBe(true);
+		expect(isPropertyVisible('liteLlmModel', {
+			...visibleParams,
+			authentication: 'claudeApi',
+		})).toBe(false);
+		expect(isPropertyVisible('liteLlmModel', {
+			...visibleParams,
+			backendMode: 'managedAgent',
+		})).toBe(false);
 	});
 
 	it('shows postgres credential when observability persistence can target postgres', () => {

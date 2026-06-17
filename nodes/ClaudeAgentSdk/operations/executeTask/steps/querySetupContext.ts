@@ -9,6 +9,7 @@ import { ApplicationError } from 'n8n-workflow';
 import type { AdditionalOptions, ISessionMemory } from '../../../types';
 import type { OperatorPolicy } from '../../../permissions/policy';
 import { addFastModeBeta, supportsOpusFastMode } from '../../../claudeModels';
+import { DEFAULT_API_PROVIDER, PROVIDER_DEFAULTS, isApiProvider } from '../../../providerConfig';
 import { parseClaudeCodePromptSections } from './querySetupHelpers';
 import type {
 	ApiProvider,
@@ -49,16 +50,7 @@ function readStringArray(value: unknown): string[] | undefined {
 }
 
 function readApiProvider(value: unknown): ApiProvider | undefined {
-	if (
-		value === 'anthropic' ||
-		value === 'openrouter' ||
-		value === 'ollama' ||
-		value === 'custom' ||
-		value === 'alibaba'
-	) {
-		return value;
-	}
-	return undefined;
+	return isApiProvider(value) ? value : undefined;
 }
 
 function readEnvSecurityMode(value: unknown): AdditionalOptions['envSecurityMode'] {
@@ -204,6 +196,10 @@ function readModelOverrides(execFunctions: IExecuteFunctions, itemIndex: number)
 		alibabaSonnetModel: readStringParameter(execFunctions, itemIndex, 'alibabaSonnetModel', ''),
 		alibabaOpusModel: readStringParameter(execFunctions, itemIndex, 'alibabaOpusModel', ''),
 		alibabaHaikuModel: readStringParameter(execFunctions, itemIndex, 'alibabaHaikuModel', ''),
+		liteLlmModel: readStringParameter(execFunctions, itemIndex, 'liteLlmModel', ''),
+		liteLlmModelAlias: readStringParameter(execFunctions, itemIndex, 'liteLlmModelAlias', ''),
+		codeMieModel: readStringParameter(execFunctions, itemIndex, 'codeMieModel', ''),
+		codeMieModelManual: readStringParameter(execFunctions, itemIndex, 'codeMieModelManual', ''),
 		ollamaModelOverride: readStringParameter(execFunctions, itemIndex, 'ollamaModel', ''),
 	};
 }
@@ -281,8 +277,10 @@ function resolveApiProvider(
 ): ApiProvider {
 	if (resolvedAuthMethod === 'openrouter') return 'openrouter';
 	if (resolvedAuthMethod === 'alibaba') return 'alibaba';
+	if (resolvedAuthMethod === 'litellm') return 'litellm';
+	if (resolvedAuthMethod === 'codemie') return 'codemie';
 	if (resolvedAuthMethod === 'ollama') return 'ollama';
-	return additionalOptions.apiProvider ?? 'anthropic';
+	return additionalOptions.apiProvider ?? DEFAULT_API_PROVIDER;
 }
 
 function validateOllamaBaseUrl(baseUrl: string): void {
@@ -291,7 +289,7 @@ function validateOllamaBaseUrl(baseUrl: string): void {
 	} catch {
 		throw new ApplicationError(
 			`Invalid Ollama Base URL: "${baseUrl}". ` +
-				'Please provide a valid URL (e.g., http://localhost:11434).',
+				`Please provide a valid URL (e.g., ${PROVIDER_DEFAULTS.ollamaBaseUrl}).`,
 		);
 	}
 	if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
@@ -315,7 +313,7 @@ function validateProviderRequest(args: {
 		);
 	}
 	if (args.apiProvider === 'ollama') {
-		validateOllamaBaseUrl(args.ollamaBaseUrl || 'http://localhost:11434');
+		validateOllamaBaseUrl(args.ollamaBaseUrl || PROVIDER_DEFAULTS.ollamaBaseUrl);
 	}
 }
 
@@ -393,5 +391,7 @@ export function buildQuerySetupContext(args: QuerySetupContextArgs): QuerySetupC
 		customApiEndpoint,
 		ollamaBaseUrl,
 		ollamaModel: modelOverrides.ollamaModelOverride || additionalOptions.ollamaModel,
+		liteLlmModel: modelOverrides.liteLlmModelAlias || modelOverrides.liteLlmModel,
+		codeMieModel: modelOverrides.codeMieModelManual || modelOverrides.codeMieModel,
 	};
 }

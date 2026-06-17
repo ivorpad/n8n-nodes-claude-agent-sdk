@@ -3,6 +3,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 
 import { nodeProperties } from '../nodeProperties';
 import { localCliOnly, operationOnly } from '../nodeProperties/backendModeHelper';
+import { isCodeMieAvailable } from '../codemie/companion';
 import { permissionsProperties } from '../permissions/properties';
 import { streamingConfigProperties } from '../streaming/properties';
 import { sandboxProperties } from '../sandbox/properties';
@@ -15,11 +16,15 @@ const KNOWN_AUTHENTICATION_VALUES = [
 	'claudeApi',
 	'claudeAgentSdkOpenRouterApi',
 	'alibabaCodingPlanApi',
+	'claudeAgentSdkLiteLlmApi',
+	'codeMieSsoApi',
 	'none',
 	'apiCredentials',
 	'cliSession',
 	'openrouter',
 	'alibaba',
+	'litellm',
+	'codemie',
 	'ollama',
 	'predefinedCredentialType',
 ];
@@ -31,6 +36,8 @@ const KNOWN_NODE_CREDENTIAL_TYPES = [
 	'openRouterApi',
 	'claudeAgentSdkOpenRouterApi',
 	'alibabaCodingPlanApi',
+	'claudeAgentSdkLiteLlmApi',
+	'codeMieSsoApi',
 ];
 
 function providerCredential(
@@ -166,6 +173,20 @@ export const claudeAgentSdkDescription: INodeTypeDescription = {
 			authentication: ['alibabaCodingPlanApi', 'alibaba', 'predefinedCredentialType'],
 			nodeCredentialType: ['alibabaCodingPlanApi'],
 		}),
+		providerCredential('claudeAgentSdkLiteLlmApi', {
+			authentication: ['claudeAgentSdkLiteLlmApi', 'litellm', 'predefinedCredentialType'],
+			nodeCredentialType: ['claudeAgentSdkLiteLlmApi'],
+		}),
+		// CodeMie SSO credential lives in the companion package; only declare it
+		// when that package is installed (otherwise the type is unregistered).
+		...(isCodeMieAvailable()
+			? [
+					providerCredential('codeMieSsoApi', {
+						authentication: ['codeMieSsoApi', 'codemie', 'predefinedCredentialType'],
+						nodeCredentialType: ['codeMieSsoApi'],
+					}),
+				]
+			: []),
 		{
 			name: 'secureEnvVarsApi',
 			required: false,

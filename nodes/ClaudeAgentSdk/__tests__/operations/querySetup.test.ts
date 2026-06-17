@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AdditionalOptions } from '../../types';
+import type { AdditionalOptions, ISessionMemory } from '../../types';
 import { buildQuerySetup } from '../../operations/executeTask/steps/querySetup';
 import type { ExecuteTaskOptions } from '../../operations/executeTask/types';
 import type { OperatorPolicy } from '../../permissions/policy';
@@ -28,6 +28,8 @@ function createParams(overrides: Record<string, unknown> = {}): Record<string, u
 		alibabaSonnetModel: '',
 		alibabaOpusModel: '',
 		alibabaHaikuModel: '',
+		liteLlmModel: '',
+		liteLlmModelAlias: '',
 		ollamaModel: '',
 		structuredOutput: false,
 		thinkingMode: 'default',
@@ -53,8 +55,9 @@ async function setupQuery(
 	overrides: {
 		params?: Record<string, unknown>;
 		options?: Partial<ExecuteTaskOptions>;
-		resolvedAuthMethod?: 'apiCredentials' | 'cliSession' | 'openrouter' | 'ollama' | 'alibaba';
+		resolvedAuthMethod?: 'apiCredentials' | 'cliSession' | 'openrouter' | 'ollama' | 'alibaba' | 'litellm';
 		resumeSessionId?: string;
+		sessionMemory?: ISessionMemory;
 		operatorPolicy?: OperatorPolicy;
 		additionalOptions?: AdditionalOptions;
 	} = {},
@@ -74,6 +77,7 @@ async function setupQuery(
 		resolvedAuthMethod: overrides.resolvedAuthMethod ?? 'apiCredentials',
 		workingDirectory: '/workspace/project',
 		chatSessionId: 'chat-session-1',
+		sessionMemory: overrides.sessionMemory,
 		resumeSessionId: overrides.resumeSessionId,
 		agents: {},
 		operatorPolicy: overrides.operatorPolicy ?? defaultOperatorPolicy,
@@ -102,6 +106,26 @@ describe('buildQuerySetup', () => {
 		});
 		expect(resumed.queryOptions.sessionId).toBeUndefined();
 		expect(resumed.queryOptions.title).toBeUndefined();
+	});
+
+	it('does not carry forkSession into resume query options', async () => {
+		const resumed = await setupQuery({
+			resumeSessionId: 'chat-session-1',
+			sessionMemory: {
+				type: 'claude-session-memory',
+				has: async () => true,
+				touch: async () => {},
+			},
+			params: {
+				executionSettings: {
+					forkSession: true,
+				},
+			},
+		});
+
+		expect(resumed.queryOptions.resume).toBe('chat-session-1');
+		expect(resumed.queryOptions.sessionId).toBeUndefined();
+		expect(resumed.queryOptions.forkSession).toBeUndefined();
 	});
 
 	it('clamps Alibaba thinking budget and removes incompatible effort options', async () => {
@@ -144,6 +168,30 @@ describe('buildQuerySetup', () => {
 			{ type: 'local', path: '/plugins/c' },
 			{ type: 'local', path: '/plugins/d' },
 		]);
+	});
+
+	it('uses LiteLLM manual model aliases for query options and provider env', async () => {
+		const setup = await setupQuery({
+			resolvedAuthMethod: 'litellm',
+			options: {
+				apiKey: undefined,
+				liteLlmAuthToken: 'sk-litellm-token',
+				liteLlmBaseUrl: 'http://proxy.local:4000/v1/',
+			},
+			params: {
+				liteLlmModel: 'listed-alias',
+				liteLlmModelAlias: 'manual-alias',
+			},
+		});
+
+		expect(setup.apiProvider).toBe('litellm');
+		expect(setup.queryOptions.model).toBe('manual-alias');
+		expect(setup.queryOptions.env).toMatchObject({
+			ANTHROPIC_BASE_URL: 'http://proxy.local:4000',
+			ANTHROPIC_AUTH_TOKEN: 'sk-litellm-token',
+			ANTHROPIC_API_KEY: '',
+			ANTHROPIC_MODEL: 'manual-alias',
+		});
 	});
 
 	it('defaults Opus 4.8 to adaptive thinking without a fixed budget', async () => {

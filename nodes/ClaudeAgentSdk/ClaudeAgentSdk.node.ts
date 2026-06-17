@@ -22,6 +22,8 @@ import {
 	listManagedAgentsLoadOption,
 	listManagedEnvironmentsLoadOption,
 } from './managedAgent';
+import { listLiteLlmModelsLoadOption } from './liteLlm/loadOptions';
+import { listCodeMieModelsLoadOption } from './codemie/loadOptions';
 import { claudeAgentSdkDescription } from './node/description';
 import { execute } from './node/execute';
 import { webhook } from './node/webhook';
@@ -87,6 +89,14 @@ export class ClaudeAgentSdk extends Node {
 
 			async listManagedEnvironments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				return listManagedEnvironmentsLoadOption(this);
+			},
+
+			async listLiteLlmModels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return listLiteLlmModelsLoadOption(this);
+			},
+
+			async listCodeMieModels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return listCodeMieModelsLoadOption(this);
 			},
 		},
 	};

@@ -92,6 +92,20 @@ Check:
 - Thinking settings are compatible with Alibaba. The runtime disables or clamps
   known-incompatible thinking options.
 
+### LiteLLM Provider Errors
+
+Check:
+
+- **Authentication** is `LiteLLM`.
+- The `Claude Agent SDK LiteLLM API` credential Base URL points to the proxy
+  root, for example `http://localhost:4000`.
+- The credential API key is valid for the LiteLLM proxy.
+- The selected or typed LiteLLM model alias exists in the proxy config.
+
+The model dropdown loads from `${baseUrl}/v1/models`. If that endpoint is not
+available, type the alias in **LiteLLM Model Alias**. The runtime intentionally
+clears `ANTHROPIC_API_KEY` and uses `ANTHROPIC_AUTH_TOKEN` for LiteLLM.
+
 ### Ollama Connection Refused
 
 Check:

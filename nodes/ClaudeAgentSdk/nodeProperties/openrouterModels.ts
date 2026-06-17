@@ -1,8 +1,9 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { PROVIDER_DEFAULTS } from '../providerConfig';
 
 /** Metadata for each OpenRouter model tier */
 interface ModelTier {
-	tier: string;     // e.g. 'Sonnet', 'Opus', 'Haiku'
+	tier: string; // e.g. 'Sonnet', 'Opus', 'Haiku'
 	paramName: string; // e.g. 'openrouterSonnetModel'
 }
 
@@ -31,7 +32,7 @@ function makeOpenRouterModelProperty({ tier, paramName }: ModelTier): INodePrope
 				routing: {
 					request: {
 						method: 'GET',
-						url: '={{(() => { const base = String($credentials.baseUrl || $credentials.url || "https://openrouter.ai/api/v1").replace(/\\/$/, ""); return base.endsWith("/api") ? `${base}/v1/models` : `${base}/models`; })()}}',
+						url: `={{(() => { const base = String($credentials.baseUrl || $credentials.url || "${PROVIDER_DEFAULTS.openrouterCredentialBaseUrl}").replace(/\\/$/, ""); return base.endsWith("/api") ? \`\${base}/v1/models\` : \`\${base}/models\`; })()}}`,
 					},
 					output: {
 						postReceive: [
@@ -58,4 +59,6 @@ function makeOpenRouterModelProperty({ tier, paramName }: ModelTier): INodePrope
 	};
 }
 
-export const openrouterModelProperties: INodeProperties[] = MODEL_TIERS.map(makeOpenRouterModelProperty);
+export const openrouterModelProperties: INodeProperties[] = MODEL_TIERS.map(
+	makeOpenRouterModelProperty,
+);

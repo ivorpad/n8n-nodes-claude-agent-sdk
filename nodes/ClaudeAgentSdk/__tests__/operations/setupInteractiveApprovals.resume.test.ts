@@ -94,6 +94,45 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			expect(queryOptions.resumeSessionAt).toBe('msg_uuid_123');
 		});
 
+		it('strips new-session-only options when webhook data converts a run into HITL resume', async () => {
+			const exec = createExec();
+			exec.getWorkflowStaticData.mockReturnValue({});
+			exec.getInputData.mockReturnValue([
+				{
+					json: {
+						version: '1.0',
+						type: 'approval_response',
+						requestId: 'req_1',
+						decisionId: 'dec_1',
+						decidedAt: '2026-02-26T12:00:00.000Z',
+						channel: 'webhook',
+						approved: true,
+						resumeSessionId: 'sdk_session_42',
+					},
+				},
+			]);
+
+			const queryOptions: Record<string, unknown> = {
+				sessionId: 'chat_1',
+				title: 'Initial title',
+				forkSession: true,
+			};
+			await setupInteractiveApprovals({
+				execFunctions: exec,
+				itemIndex: 0,
+				permissionMode: 'default',
+				queryOptions,
+				taskDescription: 'Original task',
+				chatSessionId: 'chat_1',
+				resumeSessionId: undefined,
+			});
+
+			expect(queryOptions.resume).toBe('chat_1');
+			expect(queryOptions.sessionId).toBeUndefined();
+			expect(queryOptions.title).toBeUndefined();
+			expect(queryOptions.forkSession).toBeUndefined();
+		});
+
 		it('preserves canonical taskDescription and emits a neutral executionPrompt on approve', async () => {
 			const exec = createExec();
 			exec.getWorkflowStaticData.mockReturnValue({});

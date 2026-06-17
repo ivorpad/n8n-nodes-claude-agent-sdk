@@ -1,8 +1,7 @@
 import type { IExecuteFunctions, IWebhookFunctions } from 'n8n-workflow';
 
-type StaticDataContext = IExecuteFunctions | IWebhookFunctions;
-
 import { createPendingHitlStore } from '../../ClaudeAgentChannelShared/core/pendingStore';
+import { assertStaticDataStoreQueueSafe } from '../../ClaudeAgentChannelShared/core/queueMode';
 import {
 	consumePendingHitlRecordWithDecisionPostgres,
 	getLatestPendingHitlRecordByRecipientPostgres,
@@ -17,6 +16,8 @@ import type { PendingWoztellHitlRecord } from '../types';
 const STORE_KEY = '__claudeAgentWoztell_pendingInteractions';
 const DEFAULT_POSTGRES_TABLE = 'claude_hitl_pending';
 const DEFAULT_CHANNEL = 'woztell';
+
+type StaticDataContext = IExecuteFunctions | IWebhookFunctions;
 
 const sharedStore = createPendingHitlStore<PendingWoztellHitlRecord>(STORE_KEY);
 
@@ -69,6 +70,11 @@ export async function getPendingByProviderMessageId(
 		return getPendingHitlRecordByProviderMessageIdPostgres(ctx, args, asPostgresConfig(config));
 	}
 
+	assertStaticDataStoreQueueSafe(
+		ctx,
+		'Woztell HITL pending store',
+		'Set Pending Store Backend to Postgres for Woztell HITL callbacks in queue mode.',
+	);
 	const staticData = ctx.getWorkflowStaticData('node') as Record<string, unknown>;
 	const store = (staticData[STORE_KEY] as Record<string, PendingWoztellHitlRecord> | undefined) ?? {};
 	return Object.values(store).find((record) =>
@@ -89,6 +95,11 @@ export async function getLatestPendingByRecipient(
 		return getLatestPendingHitlRecordByRecipientPostgres(ctx, args, asPostgresConfig(config));
 	}
 
+	assertStaticDataStoreQueueSafe(
+		ctx,
+		'Woztell HITL pending store',
+		'Set Pending Store Backend to Postgres for Woztell HITL callbacks in queue mode.',
+	);
 	const staticData = ctx.getWorkflowStaticData('node') as Record<string, unknown>;
 	const store = (staticData[STORE_KEY] as Record<string, PendingWoztellHitlRecord> | undefined) ?? {};
 	return Object.values(store)

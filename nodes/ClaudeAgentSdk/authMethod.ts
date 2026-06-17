@@ -7,17 +7,32 @@
  * - current single authentication dropdown (value = credential type name),
  * - the removed 'predefinedCredentialType' + nodeCredentialType selector,
  * - pre-selector authentication-only values
- *   ('apiCredentials'/'cliSession'/'openrouter'/'alibaba'/'ollama').
+ *   ('apiCredentials'/'cliSession'/'openrouter'/'alibaba'/'litellm'/'ollama').
  */
 
-export type AuthMethod = 'apiCredentials' | 'cliSession' | 'openrouter' | 'ollama' | 'alibaba';
+export const AUTH_METHOD_VALUES = [
+	'apiCredentials',
+	'cliSession',
+	'openrouter',
+	'ollama',
+	'alibaba',
+	'litellm',
+	'codemie',
+] as const;
 
-export type NodeCredentialType =
-	| 'claudeApi'
-	| 'anthropicApi'
-	| 'openRouterApi'
-	| 'claudeAgentSdkOpenRouterApi'
-	| 'alibabaCodingPlanApi';
+export type AuthMethod = (typeof AUTH_METHOD_VALUES)[number];
+
+export const NODE_CREDENTIAL_TYPE_VALUES = [
+	'claudeApi',
+	'anthropicApi',
+	'openRouterApi',
+	'claudeAgentSdkOpenRouterApi',
+	'alibabaCodingPlanApi',
+	'claudeAgentSdkLiteLlmApi',
+	'codeMieSsoApi',
+] as const;
+
+export type NodeCredentialType = (typeof NODE_CREDENTIAL_TYPE_VALUES)[number];
 
 export function isNodeCredentialType(value: string): value is NodeCredentialType {
 	return (
@@ -25,7 +40,9 @@ export function isNodeCredentialType(value: string): value is NodeCredentialType
 		value === 'anthropicApi' ||
 		value === 'openRouterApi' ||
 		value === 'claudeAgentSdkOpenRouterApi' ||
-		value === 'alibabaCodingPlanApi'
+		value === 'alibabaCodingPlanApi' ||
+		value === 'claudeAgentSdkLiteLlmApi' ||
+		value === 'codeMieSsoApi'
 	);
 }
 
@@ -40,11 +57,22 @@ export function resolveAuthMethod(authentication: string, nodeCredentialType: st
 	if (authentication === 'alibabaCodingPlanApi') {
 		return 'alibaba';
 	}
+	if (authentication === 'claudeAgentSdkLiteLlmApi') {
+		return 'litellm';
+	}
+	if (authentication === 'codeMieSsoApi') {
+		return 'codemie';
+	}
 	// Legacy authentication-only values (pre-selector saves).
 	if (authentication === 'apiCredentials' || authentication === 'cliSession') {
 		return authentication;
 	}
-	if (authentication === 'openrouter' || authentication === 'alibaba') {
+	if (
+		authentication === 'openrouter' ||
+		authentication === 'alibaba' ||
+		authentication === 'litellm' ||
+		authentication === 'codemie'
+	) {
 		return authentication;
 	}
 	if (authentication === 'ollama' || authentication === 'none') {
@@ -55,11 +83,20 @@ export function resolveAuthMethod(authentication: string, nodeCredentialType: st
 	if (!isNodeCredentialType(nodeCredentialType)) {
 		return 'apiCredentials';
 	}
-	if (nodeCredentialType === 'openRouterApi' || nodeCredentialType === 'claudeAgentSdkOpenRouterApi') {
+	if (
+		nodeCredentialType === 'openRouterApi' ||
+		nodeCredentialType === 'claudeAgentSdkOpenRouterApi'
+	) {
 		return 'openrouter';
 	}
 	if (nodeCredentialType === 'alibabaCodingPlanApi') {
 		return 'alibaba';
+	}
+	if (nodeCredentialType === 'claudeAgentSdkLiteLlmApi') {
+		return 'litellm';
+	}
+	if (nodeCredentialType === 'codeMieSsoApi') {
+		return 'codemie';
 	}
 	return 'apiCredentials';
 }

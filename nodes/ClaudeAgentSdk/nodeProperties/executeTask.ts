@@ -7,6 +7,8 @@
 
 import type { INodeProperties } from 'n8n-workflow';
 import { operationProperty } from './operation';
+import { LITELLM_AUTHENTICATION_VALUES, liteLlmModelProperties } from './liteLlmModels';
+import { CODEMIE_AUTHENTICATION_VALUES, codeMieModelProperties } from './codeMieModels';
 import { TOOL_OPTIONS } from '../toolOptions';
 import {
 	CURRENT_CLAUDE_MODEL_OPTIONS,
@@ -103,8 +105,13 @@ export const executeTaskCoreProperties: INodeProperties[] = [
 				operation: executeOrScriptOperation,
 				backendMode: ['localCli'],
 			},
+			hide: {
+				authentication: [...LITELLM_AUTHENTICATION_VALUES, ...CODEMIE_AUTHENTICATION_VALUES],
+			},
 		},
 	},
+	...liteLlmModelProperties,
+	...codeMieModelProperties,
 	{
 		displayName: 'Thinking Mode',
 		name: 'thinkingMode',

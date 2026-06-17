@@ -19,6 +19,7 @@ describe('authenticationProperty', () => {
 			'claudeApi',
 			'claudeAgentSdkOpenRouterApi',
 			'alibabaCodingPlanApi',
+			'claudeAgentSdkLiteLlmApi',
 			'none',
 		]);
 		expect(authenticationProperty.default).toBe('claudeApi');

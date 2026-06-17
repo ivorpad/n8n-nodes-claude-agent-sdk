@@ -4,6 +4,8 @@
  */
 
 import { ApplicationError } from 'n8n-workflow';
+import type { ApiProvider } from '../../providerConfig';
+import { DEFAULT_API_PROVIDER, PROVIDER_DEFAULTS } from '../../providerConfig';
 
 /**
  * Default dangerous environment variable names that should be blocked.
@@ -42,7 +44,7 @@ const DEFAULT_DANGEROUS_ENV_VARS = [
 	'NODE_DEBUG',
 ];
 
-interface ProxyManagerConfig {
+export interface ProxyManagerConfig {
 	enabled?: boolean;
 	httpProxyUrl?: string;
 	httpsProxyUrl?: string;
@@ -56,7 +58,12 @@ interface ProxyManagerConfig {
 function getBlockedEnvVars(): Set<string> {
 	const envOverride = process.env.N8N_CLAUDE_BLOCKED_ENV_VARS;
 	if (envOverride) {
-		return new Set(envOverride.split(',').map((s) => s.trim()).filter(Boolean));
+		return new Set(
+			envOverride
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean),
+		);
 	}
 	return new Set(DEFAULT_DANGEROUS_ENV_VARS);
 }
@@ -74,11 +81,40 @@ function filterDangerousEnvVars(env: Record<string, unknown>, blockedVars: Set<s
 	}
 }
 
-interface EnvironmentSecurityOptions {
+export interface EnvironmentSecurityOptions {
 	envSecurityMode?: 'blocklist' | 'allowlist';
 	allowedEnvVarNames?: string[];
 	policyAllowedEnvVarNames?: string[];
 	claudeConfigDir?: string;
+}
+
+export interface BuildEnvironmentOptions {
+	apiKey?: string;
+	additionalEnv?: string;
+	apiProvider?: ApiProvider;
+	customApiEndpoint?: string;
+	ollamaBaseUrl?: string;
+	openrouterAuthToken?: string;
+	openrouterBaseUrl?: string;
+	ollamaAuthToken?: string;
+	openrouterSonnetModel?: string;
+	openrouterOpusModel?: string;
+	openrouterHaikuModel?: string;
+	alibabaAuthToken?: string;
+	alibabaBaseUrl?: string;
+	alibabaSonnetModel?: string;
+	alibabaOpusModel?: string;
+	alibabaHaikuModel?: string;
+	secureEnv?: Record<string, string>;
+	environmentSecurity?: EnvironmentSecurityOptions;
+	proxyManager?: ProxyManagerConfig;
+	anthropicBaseUrl?: string;
+	liteLlmAuthToken?: string;
+	liteLlmBaseUrl?: string;
+	liteLlmModel?: string;
+	codeMieBaseUrl?: string;
+	codeMieAuthToken?: string;
+	codeMieModel?: string;
 }
 
 const ESSENTIAL_ENV_VARS = [
@@ -207,7 +243,13 @@ export function buildMcpHeaderEnvironment(
 		}
 	}
 
-	const exposable = buildExposableEnvironment(base, {}, secureEnv, environmentSecurity, blockedEnvVars);
+	const exposable = buildExposableEnvironment(
+		base,
+		{},
+		secureEnv,
+		environmentSecurity,
+		blockedEnvVars,
+	);
 
 	return exposable;
 }
@@ -290,30 +332,39 @@ function applyEnvAllowlist(
 }
 
 /**
- * Build environment variables for query execution
+ * Build environment variables for query execution.
  */
 export function buildEnvironment(
-	apiKey: string | undefined,
-	additionalEnv: string | undefined,
-	apiProvider?: 'anthropic' | 'openrouter' | 'ollama' | 'custom' | 'alibaba',
-	customApiEndpoint?: string,
-	ollamaBaseUrl?: string,
-	openrouterAuthToken?: string,
-	openrouterBaseUrl?: string,
-	ollamaAuthToken?: string,
-	openrouterSonnetModel?: string,
-	openrouterOpusModel?: string,
-	openrouterHaikuModel?: string,
-	alibabaAuthToken?: string,
-	alibabaBaseUrl?: string,
-	alibabaSonnetModel?: string,
-	alibabaOpusModel?: string,
-	alibabaHaikuModel?: string,
-	secureEnv?: Record<string, string>,
-	environmentSecurity?: EnvironmentSecurityOptions,
-	proxyManager?: ProxyManagerConfig,
-	anthropicBaseUrl?: string,
+	options: BuildEnvironmentOptions,
 ): Record<string, string | undefined> {
+	const {
+		apiKey,
+		additionalEnv,
+		apiProvider,
+		customApiEndpoint,
+		ollamaBaseUrl,
+		openrouterAuthToken,
+		openrouterBaseUrl,
+		ollamaAuthToken,
+		openrouterSonnetModel,
+		openrouterOpusModel,
+		openrouterHaikuModel,
+		alibabaAuthToken,
+		alibabaBaseUrl,
+		alibabaSonnetModel,
+		alibabaOpusModel,
+		alibabaHaikuModel,
+		secureEnv,
+		environmentSecurity,
+		proxyManager,
+		anthropicBaseUrl,
+		liteLlmAuthToken,
+		liteLlmBaseUrl,
+		liteLlmModel,
+		codeMieBaseUrl,
+		codeMieAuthToken,
+		codeMieModel,
+	} = options;
 	let env: Record<string, unknown> = {};
 
 	// Parse environment variables if provided
@@ -329,11 +380,6 @@ export function buildEnvironment(
 	const blockedEnvVars = getBlockedEnvVars();
 	filterDangerousEnvVars(env, blockedEnvVars);
 
-	// Security: Also filter dangerous vars from secure credential env
-	if (secureEnv) {
-		filterDangerousEnvVars(secureEnv, blockedEnvVars);
-	}
-
 	// Optional workflow-level Claude config isolation override
 	if (environmentSecurity?.claudeConfigDir) {
 		env.CLAUDE_CONFIG_DIR = environmentSecurity.claudeConfigDir;
@@ -342,24 +388,34 @@ export function buildEnvironment(
 	Object.assign(env, buildProxyEnv(proxyManager));
 
 	// Set ANTHROPIC_BASE_URL based on provider (only if not already set by user)
-	const provider = apiProvider || 'anthropic';
+	const provider = apiProvider || DEFAULT_API_PROVIDER;
 	if (!env.ANTHROPIC_BASE_URL) {
 		if (provider === 'openrouter') {
-			const normalizedBaseUrl = (openrouterBaseUrl || 'https://openrouter.ai/api').replace(/\/$/, '');
+			const normalizedBaseUrl = (openrouterBaseUrl || PROVIDER_DEFAULTS.openrouterBaseUrl).replace(
+				/\/$/,
+				'',
+			);
 			env.ANTHROPIC_BASE_URL = normalizedBaseUrl.endsWith('/api/v1')
 				? normalizedBaseUrl.replace(/\/api\/v1$/, '/api')
 				: normalizedBaseUrl;
 		} else if (provider === 'ollama') {
-			env.ANTHROPIC_BASE_URL = ollamaBaseUrl || 'http://localhost:11434';
+			env.ANTHROPIC_BASE_URL = ollamaBaseUrl || PROVIDER_DEFAULTS.ollamaBaseUrl;
 		} else if (provider === 'alibaba') {
-			env.ANTHROPIC_BASE_URL = alibabaBaseUrl || 'https://coding-intl.dashscope.aliyuncs.com/apps/anthropic';
+			env.ANTHROPIC_BASE_URL = alibabaBaseUrl || PROVIDER_DEFAULTS.alibabaBaseUrl;
+		} else if (provider === 'litellm') {
+			const rawBaseUrl = (liteLlmBaseUrl ?? '').trim() || PROVIDER_DEFAULTS.liteLlmBaseUrl;
+			env.ANTHROPIC_BASE_URL = rawBaseUrl.replace(/\/+$/, '').replace(/\/v1$/, '');
+		} else if (provider === 'codemie') {
+			// The proxy URL is resolved at runtime (ensureCodemieProxy) and passed in.
+			env.ANTHROPIC_BASE_URL =
+				(codeMieBaseUrl ?? '').trim() || PROVIDER_DEFAULTS.codeMieProxyBaseUrl;
 		} else if (provider === 'custom') {
 			if (customApiEndpoint) {
 				env.ANTHROPIC_BASE_URL = customApiEndpoint;
 			}
 		} else if (provider === 'anthropic') {
 			const normalizedBaseUrl = anthropicBaseUrl?.trim().replace(/\/$/, '');
-			if (normalizedBaseUrl && normalizedBaseUrl !== 'https://api.anthropic.com') {
+			if (normalizedBaseUrl && normalizedBaseUrl !== PROVIDER_DEFAULTS.anthropicBaseUrl) {
 				env.ANTHROPIC_BASE_URL = normalizedBaseUrl;
 			}
 		}
@@ -419,9 +475,33 @@ export function buildEnvironment(
 		if (alibabaModel) {
 			env.ANTHROPIC_MODEL = alibabaModel;
 		}
+	} else if (provider === 'litellm') {
+		const trimmedAuthToken = liteLlmAuthToken?.trim();
+		const effectiveAuthToken = trimmedAuthToken || apiKey || process.env.ANTHROPIC_AUTH_TOKEN;
+		if (!Object.prototype.hasOwnProperty.call(env, 'ANTHROPIC_AUTH_TOKEN') && effectiveAuthToken) {
+			env.ANTHROPIC_AUTH_TOKEN = effectiveAuthToken;
+		}
+		env.ANTHROPIC_API_KEY = '';
+		const trimmedLiteLlmModel = liteLlmModel?.trim();
+		if (trimmedLiteLlmModel) {
+			env.ANTHROPIC_MODEL = trimmedLiteLlmModel;
+		}
+	} else if (provider === 'codemie') {
+		// The gateway key authenticates to the local proxy; the proxy injects the
+		// real SSO credentials upstream. ANTHROPIC_API_KEY must be empty.
+		const trimmedAuthToken = codeMieAuthToken?.trim();
+		if (!Object.prototype.hasOwnProperty.call(env, 'ANTHROPIC_AUTH_TOKEN') && trimmedAuthToken) {
+			env.ANTHROPIC_AUTH_TOKEN = trimmedAuthToken;
+		}
+		env.ANTHROPIC_API_KEY = '';
+		const trimmedCodeMieModel = codeMieModel?.trim();
+		if (trimmedCodeMieModel) {
+			env.ANTHROPIC_MODEL = trimmedCodeMieModel;
+		}
 	} else if (provider === 'ollama') {
 		const trimmedAuthToken = ollamaAuthToken?.trim();
-		const effectiveAuthToken = trimmedAuthToken || process.env.ANTHROPIC_AUTH_TOKEN || 'ollama';
+		const effectiveAuthToken =
+			trimmedAuthToken || process.env.ANTHROPIC_AUTH_TOKEN || PROVIDER_DEFAULTS.ollamaAuthToken;
 		if (!Object.prototype.hasOwnProperty.call(env, 'ANTHROPIC_AUTH_TOKEN')) {
 			env.ANTHROPIC_AUTH_TOKEN = effectiveAuthToken;
 		}
@@ -441,7 +521,16 @@ export function buildEnvironment(
 
 	// Essential variables for CLI operation in any environment
 	// CLAUDE_CONFIG_DIR is critical for containerized envs where ~/.claude is mounted elsewhere
-	const essentialVars = ['PATH', 'HOME', 'SHELL', 'USER', 'TERM', 'LANG', 'LC_ALL', 'CLAUDE_CONFIG_DIR'];
+	const essentialVars = [
+		'PATH',
+		'HOME',
+		'SHELL',
+		'USER',
+		'TERM',
+		'LANG',
+		'LC_ALL',
+		'CLAUDE_CONFIG_DIR',
+	];
 	for (const varName of essentialVars) {
 		if (process.env[varName]) {
 			systemEnv[varName] = process.env[varName];
@@ -460,7 +549,7 @@ export function buildEnvironment(
 	// Set SDK client app identifier for User-Agent (user env overrides)
 	if (!env.CLAUDE_AGENT_SDK_CLIENT_APP) {
 		systemEnv.CLAUDE_AGENT_SDK_CLIENT_APP =
-			process.env.CLAUDE_AGENT_SDK_CLIENT_APP || 'n8n-claude-agent-sdk';
+			process.env.CLAUDE_AGENT_SDK_CLIENT_APP || PROVIDER_DEFAULTS.claudeAgentSdkClientApp;
 	}
 
 	// Final merge + dangerous-var filter + allowlist via the shared exposable-env

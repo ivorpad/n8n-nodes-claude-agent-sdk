@@ -8,7 +8,9 @@
 import type { IExecuteFunctions } from 'n8n-workflow';
 
 import type { AdditionalOptions, AgentDefinition, ISessionMemory } from '../../../types';
+import type { AuthMethod } from '../../../authMethod';
 import type { OperatorPolicy } from '../../../permissions/policy';
+import type { ApiProvider } from '../../../providerConfig';
 import type {
 	EffortLevel,
 	SettingSource,
@@ -17,8 +19,8 @@ import type {
 } from '../../../sdk/types';
 import type { ExecuteTaskOptions } from '../types';
 
-export type ResolvedAuthMethod = 'apiCredentials' | 'cliSession' | 'openrouter' | 'ollama' | 'alibaba';
-export type ApiProvider = 'anthropic' | 'openrouter' | 'ollama' | 'custom' | 'alibaba';
+export type ResolvedAuthMethod = AuthMethod;
+export type { ApiProvider };
 
 export interface ExecutionSettings {
 	forkSession: boolean;
@@ -34,6 +36,10 @@ export interface ModelOverrides {
 	alibabaSonnetModel: string;
 	alibabaOpusModel: string;
 	alibabaHaikuModel: string;
+	liteLlmModel: string;
+	liteLlmModelAlias: string;
+	codeMieModel: string;
+	codeMieModelManual: string;
 	ollamaModelOverride: string;
 }
 
@@ -63,6 +69,8 @@ export interface QuerySetupContext {
 	customApiEndpoint?: string;
 	ollamaBaseUrl?: string;
 	ollamaModel?: string;
+	liteLlmModel?: string;
+	codeMieModel?: string;
 }
 
 export interface QuerySetupContextArgs {

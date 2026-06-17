@@ -23,6 +23,11 @@ interface ParsedSkillDocument {
 	description?: string;
 }
 
+interface SkillDiscoveryOptions {
+	includeUserSkills?: boolean;
+	userSkillsDirectory?: string;
+}
+
 /**
  * Discover skills from project and user-level `.claude/skills/` directories.
  *
@@ -35,15 +40,17 @@ interface ParsedSkillDocument {
  */
 export async function discoverSkills(
 	workingDirectory?: string,
-	options?: { includeUserSkills?: boolean },
+	options?: SkillDiscoveryOptions,
 ): Promise<DiscoveredSkill[]> {
 	const projectSkills = workingDirectory
 		? await scanSkillsDirectory(path.join(workingDirectory, '.claude', 'skills'), 'project')
 		: [];
 
 	const includeUserSkills = options?.includeUserSkills ?? true;
+	const userSkillsDirectory = options?.userSkillsDirectory
+		?? path.join(os.homedir(), '.claude', 'skills');
 	const userSkills = includeUserSkills
-		? await scanSkillsDirectory(path.join(os.homedir(), '.claude', 'skills'), 'user')
+		? await scanSkillsDirectory(userSkillsDirectory, 'user')
 		: [];
 
 	// Deduplicate: project skills win over user skills

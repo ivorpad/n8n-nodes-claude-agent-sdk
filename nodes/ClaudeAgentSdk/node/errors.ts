@@ -125,6 +125,20 @@ export function getErrorMessage(error: unknown): string {
 				);
 			}
 
+			if (currentExecutionContext.provider === 'litellm') {
+				const model = currentExecutionContext.model || 'the selected LiteLLM alias';
+				return (
+					'Claude Code process failed with LiteLLM.\\n\\n' +
+					`Current model alias: ${model}\\n\\n` +
+					'Common causes:\\n' +
+					'  1. LiteLLM proxy is not reachable at the configured Base URL\\n' +
+					'  2. Invalid LiteLLM API key\\n' +
+					'  3. The selected model alias is not configured in LiteLLM\\n' +
+					'  4. The upstream model does not support Claude Code tool use\\n\\n' +
+					'Verify the LiteLLM credential, proxy logs, and selected model alias.'
+				);
+			}
+
 			return `Claude process failed: ${error.message}. Check Claude CLI authentication and configuration.`;
 		}
 
@@ -204,6 +218,9 @@ export function getErrorDescription(error: unknown): string | undefined {
 		if (error.message?.includes('401') || error.message?.toLowerCase().includes('unauthorized')) {
 			if (error.message?.includes('openrouter')) {
 				return 'OpenRouter authentication failed. Verify your OpenRouter API key and ensure the Anthropic API key credential is empty.';
+			}
+			if (error.message?.toLowerCase().includes('litellm')) {
+				return 'LiteLLM authentication failed. Verify your LiteLLM proxy API key and credential Base URL.';
 			}
 			return 'Authentication failed. Verify your API key is correct or run "claude login" for Anthropic.';
 		}

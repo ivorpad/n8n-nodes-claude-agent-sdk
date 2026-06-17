@@ -4,12 +4,16 @@ import type {
 	ICredentialType,
 	INodeProperties,
 } from 'n8n-workflow';
+import { PROVIDER_DEFAULTS } from '../nodes/ClaudeAgentSdk/providerConfig';
 
 export class ClaudeApi implements ICredentialType {
 	name = 'claudeApi';
 	displayName = 'Claude Agent SDK Anthropic API';
 	documentationUrl = 'https://docs.anthropic.com/en/api/getting-started';
-	icon = { light: 'file:../nodes/ClaudeAgentSdk/claude-color.svg', dark: 'file:../nodes/ClaudeAgentSdk/claude-color.svg' } as const;
+	icon = {
+		light: 'file:../nodes/ClaudeAgentSdk/claude-color.svg',
+		dark: 'file:../nodes/ClaudeAgentSdk/claude-color.svg',
+	} as const;
 	extends = ['claudeAgentSdkProviderApi'];
 	properties: INodeProperties[] = [
 		{
@@ -68,10 +72,9 @@ export class ClaudeApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: 'https://api.anthropic.com',
+			baseURL: PROVIDER_DEFAULTS.anthropicBaseUrl,
 			url: '/v1/models',
 			method: 'GET',
 		},
 	};
-
 }

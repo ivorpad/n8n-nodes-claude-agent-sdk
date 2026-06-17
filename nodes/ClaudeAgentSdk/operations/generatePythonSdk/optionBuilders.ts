@@ -10,16 +10,20 @@ import {
 	usesFullClaudeCodePromptPreset,
 } from '../../claudeCodePromptSections';
 import { isAdaptiveThinkingModel, isFableModel } from '../../claudeModels';
+import { DEFAULT_API_PROVIDER, PROVIDER_DEFAULTS } from '../../providerConfig';
 import type { ExtractedParams } from './params';
 import { esc, escTriple, pyDict, pyList } from './pythonLiterals';
 
 export function buildApiKeyComment(p: ExtractedParams): string {
-	const provider = p.apiProvider || 'anthropic';
+	const provider = p.apiProvider || DEFAULT_API_PROVIDER;
 	if (provider === 'openrouter') {
 		return '\nAPI Key:\n    export ANTHROPIC_AUTH_TOKEN="your-openrouter-key"  # via openrouter.ai\n';
 	}
 	if (provider === 'alibaba') {
 		return '\nAPI Key:\n    export ANTHROPIC_AUTH_TOKEN="your-alibaba-key"  # via Alibaba Coding Plan\n';
+	}
+	if (provider === 'litellm') {
+		return '\nAPI Key:\n    export ANTHROPIC_AUTH_TOKEN="your-litellm-key"  # via LiteLLM proxy\n';
 	}
 	if (provider === 'ollama') {
 		return '\nSetup:\n    ollama serve  # ensure Ollama is running\n';
@@ -34,11 +38,12 @@ export function buildThinkingOption(
 	p: ExtractedParams,
 ): { importName: string; value: string } | undefined {
 	if (p.apiProvider === 'alibaba') {
-		const alibabaBudget = p.thinkingMode === 'enabled'
-			? p.thinkingBudgetTokens
-			: p.maxThinkingTokens > 0
-				? p.maxThinkingTokens
-				: 0;
+		const alibabaBudget =
+			p.thinkingMode === 'enabled'
+				? p.thinkingBudgetTokens
+				: p.maxThinkingTokens > 0
+					? p.maxThinkingTokens
+					: 0;
 		if (alibabaBudget > 0) {
 			const normalized = Math.max(1, Math.min(38912, Math.floor(alibabaBudget)));
 			return {
@@ -46,7 +51,10 @@ export function buildThinkingOption(
 				value: `ThinkingConfigEnabled(type="enabled", budget_tokens=${normalized})`,
 			};
 		}
-		return { importName: 'ThinkingConfigDisabled', value: 'ThinkingConfigDisabled(type="disabled")' };
+		return {
+			importName: 'ThinkingConfigDisabled',
+			value: 'ThinkingConfigDisabled(type="disabled")',
+		};
 	}
 
 	if (isAdaptiveThinkingModel(p.model)) {
@@ -56,13 +64,22 @@ export function buildThinkingOption(
 			if (isFableModel(p.model)) {
 				return undefined;
 			}
-			return { importName: 'ThinkingConfigDisabled', value: 'ThinkingConfigDisabled(type="disabled")' };
+			return {
+				importName: 'ThinkingConfigDisabled',
+				value: 'ThinkingConfigDisabled(type="disabled")',
+			};
 		}
-		return { importName: 'ThinkingConfigAdaptive', value: 'ThinkingConfigAdaptive(type="adaptive")' };
+		return {
+			importName: 'ThinkingConfigAdaptive',
+			value: 'ThinkingConfigAdaptive(type="adaptive")',
+		};
 	}
 
 	if (p.thinkingMode === 'adaptive') {
-		return { importName: 'ThinkingConfigAdaptive', value: 'ThinkingConfigAdaptive(type="adaptive")' };
+		return {
+			importName: 'ThinkingConfigAdaptive',
+			value: 'ThinkingConfigAdaptive(type="adaptive")',
+		};
 	}
 	// Mirror runtime buildStandardThinkingSetup: enabled requires budget > 0,
 	// otherwise fall through to the legacy max_thinking_tokens path.
@@ -73,7 +90,10 @@ export function buildThinkingOption(
 		};
 	}
 	if (p.thinkingMode === 'disabled') {
-		return { importName: 'ThinkingConfigDisabled', value: 'ThinkingConfigDisabled(type="disabled")' };
+		return {
+			importName: 'ThinkingConfigDisabled',
+			value: 'ThinkingConfigDisabled(type="disabled")',
+		};
 	}
 	return undefined;
 }
@@ -83,10 +103,12 @@ export function buildSystemPromptBlock(
 	imports: Set<string>,
 ): string | undefined {
 	const hasSources = p.loadProjectClaudeMd || p.loadUserSettings;
-	const usePreset = hasSources && usesFullClaudeCodePromptPreset({
-		useClaudeCodePreset: p.useClaudeCodePreset,
-		selectedSections: p.claudeCodePromptSections,
-	});
+	const usePreset =
+		hasSources &&
+		usesFullClaudeCodePromptPreset({
+			useClaudeCodePreset: p.useClaudeCodePreset,
+			selectedSections: p.claudeCodePromptSections,
+		});
 	const selectedClaudeCodePrompt = buildSelectedClaudeCodePrompt({
 		selectedSections: p.claudeCodePromptSections,
 		context: {
@@ -154,19 +176,23 @@ export function buildFullEnvDict(p: ExtractedParams): string | undefined {
 	const env: Record<string, string> = {};
 
 	// 1. API provider env vars
-	const provider = p.apiProvider || 'anthropic';
+	const provider = p.apiProvider || DEFAULT_API_PROVIDER;
 	if (provider === 'openrouter') {
-		env.ANTHROPIC_BASE_URL = 'https://openrouter.ai/api';
+		env.ANTHROPIC_BASE_URL = PROVIDER_DEFAULTS.openrouterBaseUrl;
 		env.ANTHROPIC_AUTH_TOKEN = 'YOUR_OPENROUTER_API_KEY';
 		env.ANTHROPIC_API_KEY = '';
-		if (p.openrouterSonnetModel.trim()) env.ANTHROPIC_DEFAULT_SONNET_MODEL = p.openrouterSonnetModel.trim();
-		if (p.openrouterOpusModel.trim()) env.ANTHROPIC_DEFAULT_OPUS_MODEL = p.openrouterOpusModel.trim();
-		if (p.openrouterHaikuModel.trim()) env.ANTHROPIC_DEFAULT_HAIKU_MODEL = p.openrouterHaikuModel.trim();
+		if (p.openrouterSonnetModel.trim())
+			env.ANTHROPIC_DEFAULT_SONNET_MODEL = p.openrouterSonnetModel.trim();
+		if (p.openrouterOpusModel.trim())
+			env.ANTHROPIC_DEFAULT_OPUS_MODEL = p.openrouterOpusModel.trim();
+		if (p.openrouterHaikuModel.trim())
+			env.ANTHROPIC_DEFAULT_HAIKU_MODEL = p.openrouterHaikuModel.trim();
 	} else if (provider === 'alibaba') {
-		env.ANTHROPIC_BASE_URL = 'https://coding-intl.dashscope.aliyuncs.com/apps/anthropic';
+		env.ANTHROPIC_BASE_URL = PROVIDER_DEFAULTS.alibabaBaseUrl;
 		env.ANTHROPIC_AUTH_TOKEN = 'YOUR_ALIBABA_API_KEY';
 		env.ANTHROPIC_API_KEY = '';
-		if (p.alibabaSonnetModel.trim()) env.ANTHROPIC_DEFAULT_SONNET_MODEL = p.alibabaSonnetModel.trim();
+		if (p.alibabaSonnetModel.trim())
+			env.ANTHROPIC_DEFAULT_SONNET_MODEL = p.alibabaSonnetModel.trim();
 		if (p.alibabaOpusModel.trim()) env.ANTHROPIC_DEFAULT_OPUS_MODEL = p.alibabaOpusModel.trim();
 		if (p.alibabaHaikuModel.trim()) env.ANTHROPIC_DEFAULT_HAIKU_MODEL = p.alibabaHaikuModel.trim();
 		const alibabaPrimaryModel =
@@ -174,10 +200,17 @@ export function buildFullEnvDict(p: ExtractedParams): string | undefined {
 		if (alibabaPrimaryModel) {
 			env.ANTHROPIC_MODEL = alibabaPrimaryModel;
 		}
+	} else if (provider === 'litellm') {
+		env.ANTHROPIC_BASE_URL = PROVIDER_DEFAULTS.liteLlmBaseUrl;
+		env.ANTHROPIC_AUTH_TOKEN = 'YOUR_LITELLM_API_KEY';
+		env.ANTHROPIC_API_KEY = '';
+		if (p.liteLlmModel.trim()) {
+			env.ANTHROPIC_MODEL = p.liteLlmModel.trim();
+		}
 	} else if (provider === 'ollama') {
-		env.ANTHROPIC_BASE_URL = p.ollamaBaseUrl || 'http://localhost:11434';
-		env.ANTHROPIC_AUTH_TOKEN = 'ollama';
-		env.ANTHROPIC_API_KEY = 'ollama';
+		env.ANTHROPIC_BASE_URL = p.ollamaBaseUrl || PROVIDER_DEFAULTS.ollamaBaseUrl;
+		env.ANTHROPIC_AUTH_TOKEN = PROVIDER_DEFAULTS.ollamaAuthToken;
+		env.ANTHROPIC_API_KEY = PROVIDER_DEFAULTS.ollamaAuthToken;
 	} else if (provider === 'custom' && p.customApiEndpoint) {
 		env.ANTHROPIC_BASE_URL = p.customApiEndpoint;
 	}
@@ -267,7 +300,9 @@ export function buildFullEnvDict(p: ExtractedParams): string | undefined {
 
 	// Multi-line for readability when more than 2 entries
 	if (Object.keys(env).length > 2) {
-		const lines = Object.entries(env).map(([k, v]) => `            "${esc(k)}": "${esc(String(v))}",`);
+		const lines = Object.entries(env).map(
+			([k, v]) => `            "${esc(k)}": "${esc(String(v))}",`,
+		);
 		return `{\n${lines.join('\n')}\n        }`;
 	}
 	return pyDict(env);
@@ -281,7 +316,9 @@ export function buildFullEnvDict(p: ExtractedParams): string | undefined {
 export function buildExportNotes(p: ExtractedParams): string[] {
 	const notes: string[] = [];
 	if (p.persistSession === false) {
-		notes.push('Persist Session=off is TypeScript-SDK-only; the Python SDK always writes session transcripts.');
+		notes.push(
+			'Persist Session=off is TypeScript-SDK-only; the Python SDK always writes session transcripts.',
+		);
 	}
 	if (p.promptSuggestions) {
 		notes.push('Prompt Suggestions is TypeScript-SDK-only and was omitted.');
@@ -293,16 +330,22 @@ export function buildExportNotes(p: ExtractedParams): string[] {
 		notes.push(`Session Title ("${p.sessionTitle}") is TypeScript-SDK-only and was omitted.`);
 	}
 	if (p.chatSessionId) {
-		notes.push('session_id is pinned from the n8n parameter; change or remove it for independent runs.');
+		notes.push(
+			'session_id is pinned from the n8n parameter; change or remove it for independent runs.',
+		);
 	}
 	if (p.enableHookHandlers) {
-		notes.push('n8n hook handlers (HITL webhooks/commands) are not exported; implement hooks= callbacks in Python if needed.');
+		notes.push(
+			'n8n hook handlers (HITL webhooks/commands) are not exported; implement hooks= callbacks in Python if needed.',
+		);
 	}
 	if (p.n8nMcpEnabled) {
 		notes.push('n8n workflow MCP tools exist only inside n8n and are not exported.');
 	}
 	if (p.envSecurityMode === 'allowlist') {
-		notes.push('Env allowlist: the Python SDK merges env= over os.environ, so inherited variables are NOT stripped. Launch with a clean environment for real isolation.');
+		notes.push(
+			'Env allowlist: the Python SDK merges env= over os.environ, so inherited variables are NOT stripped. Launch with a clean environment for real isolation.',
+		);
 	}
 	return notes;
 }
@@ -314,7 +357,10 @@ export function buildMcpServersBlock(p: ExtractedParams): string | undefined {
 	for (const server of p.mcpServers) {
 		const name = server.name || 'unnamed';
 		if (server.type === 'stdio') {
-			const args = (server.args || '').split(',').map((a) => a.trim()).filter(Boolean);
+			const args = (server.args || '')
+				.split(',')
+				.map((a) => a.trim())
+				.filter(Boolean);
 			const parts: string[] = [`                "command": "${esc(server.command)}"`];
 			if (args.length > 0) {
 				parts.push(`                "args": ${pyList(args)}`);
@@ -325,7 +371,9 @@ export function buildMcpServersBlock(p: ExtractedParams): string | undefined {
 					if (Object.keys(envParsed).length > 0) {
 						parts.push(`                "env": ${pyDict(envParsed)}`);
 					}
-				} catch { /* skip */ }
+				} catch {
+					/* skip */
+				}
 			}
 			entries.push(`            "${esc(name)}": {\n${parts.join(',\n')},\n            },`);
 		} else {
@@ -340,7 +388,9 @@ export function buildMcpServersBlock(p: ExtractedParams): string | undefined {
 					if (Object.keys(headers).length > 0) {
 						parts.push(`                "headers": ${pyDict(headers)}`);
 					}
-				} catch { /* skip */ }
+				} catch {
+					/* skip */
+				}
 			}
 			entries.push(`            "${esc(name)}": {\n${parts.join(',\n')},\n            },`);
 		}
@@ -374,7 +424,10 @@ export function buildAgentsBlock(p: ExtractedParams): string | undefined {
 		if (toolRestrictions === 'readonly') {
 			parts.push('                tools=["Read", "Grep", "Glob"]');
 		} else if (toolRestrictions === 'custom' && agent.tools) {
-			const tools = agent.tools.split(',').map((t) => t.trim()).filter(Boolean);
+			const tools = agent.tools
+				.split(',')
+				.map((t) => t.trim())
+				.filter(Boolean);
 			if (tools.length > 0) {
 				parts.push(`                tools=${pyList(tools)}`);
 			}

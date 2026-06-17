@@ -4,11 +4,13 @@ import type {
 	ICredentialType,
 	INodeProperties,
 } from 'n8n-workflow';
+import { PROVIDER_DEFAULTS } from '../nodes/ClaudeAgentSdk/providerConfig';
 
 export class AlibabaCodingPlanApi implements ICredentialType {
 	name = 'alibabaCodingPlanApi';
 	displayName = 'Alibaba Coding Plan API';
-	documentationUrl = 'https://help.aliyun.com/zh/model-studio/developer-reference/China-coding-plan';
+	documentationUrl =
+		'https://help.aliyun.com/zh/model-studio/developer-reference/China-coding-plan';
 	icon = { light: 'file:../icons/alibaba.svg', dark: 'file:../icons/alibaba.dark.svg' } as const;
 	extends = ['claudeAgentSdkProviderApi'];
 	properties: INodeProperties[] = [
@@ -16,7 +18,7 @@ export class AlibabaCodingPlanApi implements ICredentialType {
 			displayName: 'Base URL',
 			name: 'baseUrl',
 			type: 'string',
-			default: 'https://coding-intl.dashscope.aliyuncs.com/apps/anthropic',
+			default: PROVIDER_DEFAULTS.alibabaBaseUrl,
 			description: 'Alibaba Coding Plan base URL (DashScope endpoint)',
 		},
 		{

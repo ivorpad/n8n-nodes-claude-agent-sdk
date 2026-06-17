@@ -4,6 +4,7 @@ import {
 	createPostgresConnectionHandle,
 	type N8nPostgresCredential,
 } from '../../shared/postgresConnection';
+import { assertStaticDataStoreQueueSafe } from '../../ClaudeAgentChannelShared/core/queueMode';
 import { PostgresHitlInteractionStore } from './PostgresHitlInteractionStore';
 import type { SecretsRedactor } from '../operations/executeTask/secretsRedaction';
 import type {
@@ -187,6 +188,11 @@ export async function createHitlInteractionStoreHandle(args: {
 		if (hasCredentialConfigured) {
 			throw error;
 		}
+		assertStaticDataStoreQueueSafe(
+			args.ctx,
+			'SDK HITL interaction store',
+			'Attach a Postgres credential to the Claude Agent SDK node so HITL decisions are consumed atomically across queue workers.',
+		);
 		const staticStore = createStaticHitlInteractionStore(args.ctx);
 		return {
 			store: staticStore,

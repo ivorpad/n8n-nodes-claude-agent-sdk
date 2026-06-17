@@ -19,6 +19,7 @@ import {
 	readTrimmedString,
 } from './querySetupContext';
 import type { PromptSetup, QueryOptionsArgs, QuerySetupContext } from './querySetupTypes';
+import { applyResumeQueryOptions } from './resumeQueryOptions';
 
 function setWhen<K extends keyof NodeQueryOptions>(
 	queryOptions: NodeQueryOptions,
@@ -42,6 +43,8 @@ function setDefined<K extends keyof NodeQueryOptions>(
 function resolveModelOption(context: QuerySetupContext): string | undefined {
 	if (context.apiProvider === 'ollama') return context.ollamaModel;
 	if (context.apiProvider === 'alibaba') return context.modelOverrides.alibabaSonnetModel;
+	if (context.apiProvider === 'litellm') return context.liteLlmModel;
+	if (context.apiProvider === 'codemie') return context.codeMieModel;
 	return context.model || undefined;
 }
 
@@ -108,15 +111,15 @@ function applySessionOptions(
 	resumeSessionId: string | undefined,
 ): void {
 	const sessionTitle = readTrimmedString(context.additionalOptions.sessionTitle);
+	const shouldResume = Boolean(context.additionalOptions.persistSession !== false && resumeSessionId);
+	if (shouldResume && resumeSessionId) {
+		applyResumeQueryOptions(queryOptions, resumeSessionId);
+		return;
+	}
+
 	setWhen(queryOptions, Boolean(sessionTitle && !resumeSessionId), 'title', sessionTitle);
 	setWhen(queryOptions, Boolean(chatSessionId && !resumeSessionId), 'sessionId', chatSessionId);
-	setWhen(
-		queryOptions,
-		Boolean(context.additionalOptions.persistSession !== false && resumeSessionId),
-		'resume',
-		resumeSessionId,
-	);
-	setWhen(queryOptions, context.executionSettings.forkSession, 'forkSession', true);
+	setWhen(queryOptions, context.executionSettings.forkSession && !resumeSessionId, 'forkSession', true);
 }
 
 export function buildQueryOptions(

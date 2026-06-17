@@ -87,13 +87,19 @@ interface ExtraSecretSources {
  */
 export function collectSecretsForRedaction(options: Pick<
 	ExecuteTaskOptions,
-	'apiKey' | 'openrouterAuthToken' | 'ollamaAuthToken' | 'alibabaAuthToken' | 'secureEnv'
+	| 'apiKey'
+	| 'openrouterAuthToken'
+	| 'ollamaAuthToken'
+	| 'alibabaAuthToken'
+	| 'liteLlmAuthToken'
+	| 'secureEnv'
 > & ExtraSecretSources): Array<string | undefined> {
 	return [
 		options.apiKey,
 		options.openrouterAuthToken,
 		options.ollamaAuthToken,
 		options.alibabaAuthToken,
+		options.liteLlmAuthToken,
 		...Object.values(options.secureEnv ?? {}),
 		...(options.mcpHeaderAuthValues ?? []),
 	];

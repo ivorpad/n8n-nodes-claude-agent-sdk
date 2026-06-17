@@ -18,6 +18,10 @@ describe('node properties order', () => {
 			'workingDirectory',
 			'chatSessionId',
 			'model',
+			'liteLlmModel',
+			'liteLlmModelAlias',
+			'codeMieModel',
+			'codeMieModelManual',
 			'thinkingMode',
 			'thinkingBudgetTokens',
 			'effort',
@@ -67,6 +71,7 @@ describe('node properties order', () => {
 			'isolateClaudeConfigDir',  // Isolate Claude Config Directory
 			'loadProjectClaudeMd',     // Load Project CLAUDE.md
 			'loadUserSettings',        // Load User Settings
+			'liteLlmNotice',           // LiteLLM Setup
 			'managedSettings',         // Managed Settings (JSON)
 			'maxBudgetUsd',            // Max Budget (USD)
 			'maxBufferSizeMb',         // Max Buffer Size (MB)
@@ -106,7 +111,10 @@ describe('node properties order', () => {
 		expect(names.indexOf('executionSettings')).toBeLessThan(names.indexOf('useClaudeCodePreset'));
 		expect(names.indexOf('useClaudeCodePreset')).toBeLessThan(names.indexOf('claudeCodePromptSections'));
 		expect(names.indexOf('claudeCodePromptSections')).toBeLessThan(names.indexOf('additionalOptions'));
+		expect(names.indexOf('model')).toBeLessThan(names.indexOf('liteLlmModel'));
+		expect(names.indexOf('liteLlmModel')).toBeLessThan(names.indexOf('thinkingMode'));
 		expect(names.indexOf('openrouterHaikuModel')).toBeLessThan(names.indexOf('ollamaModel'));
+		expect(names.indexOf('liteLlmModel')).toBeLessThan(names.indexOf('ollamaModel'));
 	});
 
 	it('places structured output failure policy after schema inputs', () => {

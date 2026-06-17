@@ -14,8 +14,8 @@ services. It is not designed as an n8n Cloud-compatible or n8n-verified node.
   operations.
 - Local CLI execution with Anthropic API keys or Claude Code CLI subscription
   auth.
-- Provider support for Anthropic, OpenRouter, Alibaba Coding Plan, Ollama, and
-  custom Anthropic-compatible endpoints.
+- Provider support for Anthropic, OpenRouter, Alibaba Coding Plan, LiteLLM,
+  Ollama, and custom Anthropic-compatible endpoints.
 - Session memory through Simple, Redis, or Postgres memory nodes.
 - Human-in-the-loop approvals/questions through browser/webhook flows and
   channel nodes.

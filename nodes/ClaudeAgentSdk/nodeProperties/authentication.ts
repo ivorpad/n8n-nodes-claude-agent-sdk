@@ -12,12 +12,14 @@
  * (duplicate rows), and its dynamic type resolution only works end-to-end for
  * the built-in HTTP Request node — the sole holder of n8n core's fullAccess
  * getCredentials() bypass. Legacy saved values from both prior shapes
- * ('apiCredentials'/'cliSession'/'openrouter'/'alibaba'/'ollama' and
+ * ('apiCredentials'/'cliSession'/'openrouter'/'alibaba'/'litellm'/'ollama' and
  * 'predefinedCredentialType' + nodeCredentialType) keep executing — the
  * runtime reads raw saved parameters.
  */
 
 import type { INodeProperties } from 'n8n-workflow';
+
+import { isCodeMieAvailable } from '../codemie/companion';
 
 export const authenticationProperty: INodeProperties = {
 	displayName: 'Authentication',
@@ -41,6 +43,21 @@ export const authenticationProperty: INodeProperties = {
 			value: 'alibabaCodingPlanApi',
 			description: 'Alibaba Coding Plan token (Anthropic-compatible gateway)',
 		},
+		{
+			name: 'LiteLLM',
+			value: 'claudeAgentSdkLiteLlmApi',
+			description: 'LiteLLM proxy API key (Anthropic-compatible gateway)',
+		},
+		// Gated on the companion package n8n-nodes-claude-codemie being installed.
+		...(isCodeMieAvailable()
+			? [
+					{
+						name: 'CodeMie Proxy',
+						value: 'codeMieSsoApi',
+						description: 'CodeMie SSO via the local CodeMie proxy (enterprise governance)',
+					},
+				]
+			: []),
 		{
 			name: 'Ollama (Local)',
 			value: 'none',

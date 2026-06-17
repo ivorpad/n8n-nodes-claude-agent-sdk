@@ -2,6 +2,8 @@
  * Type definitions for the Claude Agent SDK node
  */
 
+import type { ApiProvider } from './providerConfig';
+
 // SDK canonical re-exports — never re-declare these locally
 export type { AgentDefinition, McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 
@@ -230,7 +232,7 @@ export interface InvocationObservability {
 // =============================================================================
 
 export interface AdditionalOptions {
-	apiProvider?: 'anthropic' | 'openrouter' | 'ollama' | 'custom' | 'alibaba';
+	apiProvider?: ApiProvider;
 	customApiEndpoint?: string;
 	ollamaBaseUrl?: string;
 	ollamaModel?: string;

@@ -6,6 +6,7 @@ local-CLI provider choices are:
 - **Anthropic API**
 - **OpenRouter API**
 - **Alibaba Coding Plan API**
+- **LiteLLM**
 - **Ollama (Local)**
 
 The **Additional Options** -> **API Provider** field remains available for
@@ -69,6 +70,30 @@ Runtime behavior:
 - Provides Sonnet, Opus, and Haiku tier selectors for supported Alibaba models.
 - Sets safe thinking defaults for Alibaba. Explicit thinking budgets are
   clamped to the supported range before invoking Claude Code.
+
+## LiteLLM
+
+Choose **Authentication** = **LiteLLM** and create a
+`Claude Agent SDK LiteLLM API` credential.
+
+Credential options:
+
+- **Base URL**: LiteLLM proxy root URL. Defaults to `http://localhost:4000`.
+  If you enter a URL ending in `/v1`, the runtime strips that suffix before
+  setting Claude Code environment variables.
+- **API Key**: LiteLLM proxy key. The node sends it as a bearer token for
+  credential tests and model loading.
+
+Runtime behavior:
+
+- Loads LiteLLM model aliases from `${baseUrl}/v1/models`.
+- Lets you type **LiteLLM Model Alias** manually when `/v1/models` is
+  unavailable or the alias is not listed.
+- Sets `ANTHROPIC_BASE_URL` to the normalized LiteLLM proxy root.
+- Sets `ANTHROPIC_AUTH_TOKEN` from the LiteLLM credential.
+- Clears `ANTHROPIC_API_KEY` to avoid falling back to the direct Anthropic API.
+- Sets `ANTHROPIC_MODEL` and `queryOptions.model` to the selected or typed
+  LiteLLM alias.
 
 ## Ollama
 
@@ -161,6 +186,10 @@ os.environ["OPENAI_API_KEY"]
 
 Generated Python SDK scripts do not embed secure credential values. Export those
 variables in the environment where you run the generated script.
+
+For generated LiteLLM scripts, replace `YOUR_LITELLM_API_KEY` with the key in
+your runtime environment and update `ANTHROPIC_BASE_URL` if your proxy is not on
+`http://localhost:4000`.
 
 ## MCP Header Placeholders
 

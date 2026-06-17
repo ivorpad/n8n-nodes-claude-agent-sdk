@@ -47,7 +47,8 @@ deterministic session.
 
 The model dropdown includes short aliases (`opus`, `sonnet`, `haiku`, default)
 and explicit model IDs. Provider-specific model-tier overrides are shown for
-OpenRouter and Alibaba.
+OpenRouter and Alibaba. LiteLLM shows a model alias dropdown loaded from the
+proxy and a manual alias field for unlisted or unavailable model listings.
 
 For supported Opus/Fable models, use **Thinking Mode** = `Adaptive` and the
 **Effort** field where available. Fixed thinking budgets are not valid for every

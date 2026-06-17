@@ -101,7 +101,9 @@ function renderScript(p: ExtractedParams): string {
 		? (p.ollamaModel || p.model)
 		: p.apiProvider === 'alibaba'
 			? (p.alibabaSonnetModel || '')
-			: p.model;
+			: p.apiProvider === 'litellm'
+				? p.liteLlmModel
+				: p.model;
 	if (effectiveModel) {
 		optionLines.push(`        model="${esc(effectiveModel)}",`);
 	}

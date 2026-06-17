@@ -59,6 +59,19 @@ describe('Secrets Redaction', () => {
 			expect(secrets).toContain('sk-alibaba-token-abc');
 		});
 
+		it('should collect LiteLLM auth token', () => {
+			const secrets = collectSecretsForRedaction({
+				apiKey: undefined,
+				openrouterAuthToken: undefined,
+				ollamaAuthToken: undefined,
+				alibabaAuthToken: undefined,
+				liteLlmAuthToken: 'sk-litellm-token-def',
+				secureEnv: undefined,
+			});
+
+			expect(secrets).toContain('sk-litellm-token-def');
+		});
+
 		it('should redact an Alibaba auth token value from outputs', () => {
 			const secrets = collectSecretsForRedaction({
 				apiKey: undefined,

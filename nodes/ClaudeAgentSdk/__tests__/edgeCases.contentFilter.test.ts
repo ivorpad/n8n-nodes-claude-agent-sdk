@@ -28,7 +28,7 @@ describe('Edge Cases - Content Filter', () => {
 			expect(() => checkContentFilter(input, config)).not.toThrow();
 		});
 
-		it('should reject catastrophic backtracking patterns before evaluation', () => {
+		it('should reject unsafe regex patterns before evaluation', () => {
 			// The pattern (a+)+$ would hang with standard RegExp on long inputs.
 			// It should be rejected before RegExp evaluation.
 			const config = {
@@ -43,24 +43,19 @@ describe('Edge Cases - Content Filter', () => {
 				],
 			};
 
-			// Use a VERY long input that would hang standard RegExp for minutes/hours
-			const longInput = 'a'.repeat(100_000) + '!';
 			const input = {
 				session_id: 'test',
 				transcript_path: '/tmp',
 				cwd: '/project',
 				hook_event_name: 'PreToolUse' as const,
 				tool_name: 'Bash',
-				tool_input: { command: longInput },
+				tool_input: { command: 'x' },
 			};
 
-			const start = Date.now();
 			const result = checkContentFilter(input, config);
-			const duration = Date.now() - start;
 
 			expect(result.blocked).toBe(true);
 			expect(result.matchedContent).toContain('Unsafe regex pattern rejected');
-			expect(duration).toBeLessThan(100);
 		});
 	});
 

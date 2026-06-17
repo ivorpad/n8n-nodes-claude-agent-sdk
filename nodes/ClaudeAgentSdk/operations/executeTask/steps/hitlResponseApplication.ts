@@ -6,6 +6,7 @@ import type { HitlApprovalResponseEnvelope, HitlResponseEnvelope } from '../../.
 import type { PendingHitlResolution } from '../types';
 import type { NodeQueryOptions } from '../../../sdk/types';
 import type { InvocationObservabilityCollector } from '../observability';
+import { applyResumeQueryOptions } from './resumeQueryOptions';
 
 type ApprovalConfig = ReturnType<typeof parseApprovalConfig>;
 type BackendMode = 'localCli' | 'managedAgent';
@@ -110,7 +111,7 @@ function applyCommonHitlResponseState(args: {
 	if (canonicalResumeSessionId) {
 		state.isApprovalResume = true;
 		state.resumeSessionId = canonicalResumeSessionId;
-		queryOptions.resume = canonicalResumeSessionId;
+		applyResumeQueryOptions(queryOptions, canonicalResumeSessionId);
 	}
 
 	const streamKey = hitlResponse.streamKey || hitlResponse.streamingRequestId;

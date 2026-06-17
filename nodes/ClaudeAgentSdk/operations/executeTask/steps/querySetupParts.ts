@@ -18,7 +18,13 @@ import { buildSubagentInstructions } from '../subagents';
 import type { ExecuteTaskOptions } from '../types';
 import { parseCommaSeparatedNames, resolveIsolatedClaudeConfigDir } from './querySetupHelpers';
 import { isRecord, readTrimmedString } from './querySetupContext';
-import type { ApiProvider, EnvironmentArgs, PromptSetup, PromptSetupArgs, StderrCapture } from './querySetupTypes';
+import type {
+	ApiProvider,
+	EnvironmentArgs,
+	PromptSetup,
+	PromptSetupArgs,
+	StderrCapture,
+} from './querySetupTypes';
 import type { SettingSource, UpstreamQueryOptions } from '../../../sdk/types';
 import { resolveNpmClaudeCodeExecutable } from '../../../sdk/claudeCodeExecutable';
 
@@ -61,43 +67,70 @@ function validateProviderEnvironment(apiProvider: ApiProvider, env: Record<strin
 				'Please select at least a Sonnet Model in the Alibaba Coding Plan model tier dropdowns.',
 		);
 	}
+	if (apiProvider === 'litellm' && !env.ANTHROPIC_AUTH_TOKEN) {
+		throw new ApplicationError(
+			'LiteLLM requires an API key. Please provide your LiteLLM proxy API key in LiteLLM credentials.',
+		);
+	}
+	if (apiProvider === 'litellm' && !env.ANTHROPIC_MODEL) {
+		throw new ApplicationError(
+			'LiteLLM requires a model alias. Select one from the LiteLLM Model dropdown or type a LiteLLM Model Alias.',
+		);
+	}
+	if (apiProvider === 'codemie' && !env.ANTHROPIC_AUTH_TOKEN) {
+		throw new ApplicationError(
+			'CodeMie Proxy is not ready. Authenticate the CodeMie SSO credential (enter the Instance URL, ' +
+				'open the Authenticate link, paste the token, and click Test) and try again.',
+		);
+	}
+	if (apiProvider === 'codemie' && !env.ANTHROPIC_MODEL) {
+		throw new ApplicationError(
+			'CodeMie Proxy requires a model. Select one from the CodeMie Model dropdown or type a Manual Model.',
+		);
+	}
 }
 
 export function buildQueryEnvironment(args: EnvironmentArgs): UpstreamQueryOptions['env'] {
 	const { context, options } = args;
-	const env = buildEnvironment(
-		options.apiKey,
-		context.additionalOptions.env,
-		context.apiProvider,
-		context.customApiEndpoint,
-		context.ollamaBaseUrl,
-		options.openrouterAuthToken,
-		options.openrouterBaseUrl,
-		options.ollamaAuthToken,
-		context.modelOverrides.openrouterSonnetModel,
-		context.modelOverrides.openrouterOpusModel,
-		context.modelOverrides.openrouterHaikuModel,
-		options.alibabaAuthToken,
-		options.alibabaBaseUrl,
-		context.modelOverrides.alibabaSonnetModel,
-		context.modelOverrides.alibabaOpusModel,
-		context.modelOverrides.alibabaHaikuModel,
-		options.secureEnv,
-		{
+	const env = buildEnvironment({
+		apiKey: options.apiKey,
+		additionalEnv: context.additionalOptions.env,
+		apiProvider: context.apiProvider,
+		customApiEndpoint: context.customApiEndpoint,
+		ollamaBaseUrl: context.ollamaBaseUrl,
+		openrouterAuthToken: options.openrouterAuthToken,
+		openrouterBaseUrl: options.openrouterBaseUrl,
+		ollamaAuthToken: options.ollamaAuthToken,
+		openrouterSonnetModel: context.modelOverrides.openrouterSonnetModel,
+		openrouterOpusModel: context.modelOverrides.openrouterOpusModel,
+		openrouterHaikuModel: context.modelOverrides.openrouterHaikuModel,
+		alibabaAuthToken: options.alibabaAuthToken,
+		alibabaBaseUrl: options.alibabaBaseUrl,
+		alibabaSonnetModel: context.modelOverrides.alibabaSonnetModel,
+		alibabaOpusModel: context.modelOverrides.alibabaOpusModel,
+		alibabaHaikuModel: context.modelOverrides.alibabaHaikuModel,
+		secureEnv: options.secureEnv,
+		environmentSecurity: {
 			envSecurityMode: context.additionalOptions.envSecurityMode,
 			allowedEnvVarNames: parseCommaSeparatedNames(context.additionalOptions.allowedEnvVarNames),
 			policyAllowedEnvVarNames: args.operatorPolicy.allowedEnvVarNames,
 			claudeConfigDir: resolveClaudeConfigDir(args),
 		},
-		{
+		proxyManager: {
 			enabled: context.proxySetup.useProxyManager,
 			httpProxyUrl: context.proxySetup.httpProxyUrl,
 			httpsProxyUrl: context.proxySetup.httpsProxyUrl,
 			noProxy: context.proxySetup.noProxy,
 			caBundlePath: context.proxySetup.caBundlePath,
 		},
-		options.anthropicBaseUrl,
-	);
+		anthropicBaseUrl: options.anthropicBaseUrl,
+		liteLlmAuthToken: options.liteLlmAuthToken,
+		liteLlmBaseUrl: options.liteLlmBaseUrl,
+		liteLlmModel: context.liteLlmModel,
+		codeMieBaseUrl: options.codeMieBaseUrl,
+		codeMieAuthToken: options.codeMieAuthToken,
+		codeMieModel: context.codeMieModel,
+	});
 	validateProviderEnvironment(context.apiProvider, env);
 	return env;
 }

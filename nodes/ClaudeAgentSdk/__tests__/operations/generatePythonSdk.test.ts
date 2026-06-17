@@ -504,6 +504,36 @@ describe('generatePythonSdkScript', () => {
 		expect(script).toContain('ollama serve');
 	});
 
+	it('sets LiteLLM env vars and uses the selected model alias in generated script', () => {
+		const ctx = createMockContext({
+			authentication: 'claudeAgentSdkLiteLlmApi',
+			taskDescription: 'Run through LiteLLM',
+			workingDirectory: '',
+			model: 'sonnet',
+			liteLlmModel: 'listed-alias',
+			liteLlmModelAlias: 'manual-alias',
+			permissionMode: 'default',
+			allowedTools: [],
+			disallowedTools: [],
+			enableStreaming: false,
+			enableMcpServers: false,
+			enableSubagents: false,
+			structuredOutput: false,
+			additionalOptions: {},
+			executionSettings: {},
+		});
+
+		const result = generatePythonSdkScript(ctx, 0);
+		const script = result.json.script as string;
+
+		expect(script).toContain('"ANTHROPIC_BASE_URL": "http://localhost:4000"');
+		expect(script).toContain('"ANTHROPIC_AUTH_TOKEN": "YOUR_LITELLM_API_KEY"');
+		expect(script).toContain('"ANTHROPIC_API_KEY": ""');
+		expect(script).toContain('"ANTHROPIC_MODEL": "manual-alias"');
+		expect(script).toContain('model="manual-alias"');
+		expect(script).not.toContain('model="sonnet"');
+	});
+
 	it('sets custom endpoint ANTHROPIC_BASE_URL in generated script', () => {
 		const ctx = createMockContext({
 			taskDescription: 'Test Custom',

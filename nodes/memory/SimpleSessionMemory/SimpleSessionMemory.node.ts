@@ -26,7 +26,14 @@ type SessionEntry = {
 	workingDirectory?: string;
 	managedAgentSessionId?: string;
 	lastAccessed: Date;
+	ttlMs: number;
 };
+
+const DEFAULT_SESSION_TTL_MS = 60 * 60 * 1000;
+
+function ttlHoursToMilliseconds(value: number): number {
+	return Number.isFinite(value) && value > 0 ? value * 60 * 60 * 1000 : 0;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -75,6 +82,7 @@ class SessionMemorySingleton {
 		key: string,
 		parentNodeName?: string,
 		metadata?: { workingDirectory?: string; managedAgentSessionId?: string },
+		ttlMs = DEFAULT_SESSION_TTL_MS,
 	): Promise<void> {
 		const existing = this.sessions.get(key);
 		this.sessions.set(key, {
@@ -82,13 +90,15 @@ class SessionMemorySingleton {
 			workingDirectory: metadata?.workingDirectory ?? existing?.workingDirectory,
 			managedAgentSessionId: metadata?.managedAgentSessionId ?? existing?.managedAgentSessionId,
 			lastAccessed: new Date(),
+			ttlMs,
 		});
 	}
 
 	private cleanupStale(): void {
-		const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+		const now = Date.now();
 		for (const [key, entry] of this.sessions.entries()) {
-			if (entry.lastAccessed < oneHourAgo) {
+			const ttlMs = typeof entry.ttlMs === 'number' ? entry.ttlMs : DEFAULT_SESSION_TTL_MS;
+			if (ttlMs > 0 && now - entry.lastAccessed.getTime() > ttlMs) {
 				this.sessions.delete(key);
 			}
 		}
@@ -129,6 +139,8 @@ export class SimpleSessionMemory implements INodeType {
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		void itemIndex;
+		const sessionTtlHours = this.getNodeParameter('sessionTTL', itemIndex, 1) as number;
+		const sessionTtlMs = ttlHoursToMilliseconds(sessionTtlHours);
 		const workflowId = this.getWorkflow().id;
 		const memoryInstance = SessionMemorySingleton.getInstance();
 
@@ -160,7 +172,7 @@ export class SimpleSessionMemory implements INodeType {
 			): Promise<void> {
 				// Key is workflowId + sessionId only; parentNodeName stored separately for analytics
 				const key = `${workflowId}__${sessionId}`;
-				await memoryInstance.touch(key, nodeNameForAnalytics || parentNodeName, metadata);
+				await memoryInstance.touch(key, nodeNameForAnalytics || parentNodeName, metadata, sessionTtlMs);
 			},
 		};
 

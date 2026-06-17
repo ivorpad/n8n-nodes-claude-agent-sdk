@@ -4,12 +4,16 @@ import type {
 	ICredentialType,
 	INodeProperties,
 } from 'n8n-workflow';
+import { PROVIDER_DEFAULTS } from '../nodes/ClaudeAgentSdk/providerConfig';
 
 export class ClaudeAgentSdkOpenRouterApi implements ICredentialType {
 	name = 'claudeAgentSdkOpenRouterApi';
 	displayName = 'Claude Agent SDK OpenRouter API';
 	documentationUrl = 'https://openrouter.ai/docs';
-	icon = { light: 'file:../icons/openrouter.svg', dark: 'file:../icons/openrouter.dark.svg' } as const;
+	icon = {
+		light: 'file:../icons/openrouter.svg',
+		dark: 'file:../icons/openrouter.dark.svg',
+	} as const;
 	extends = ['claudeAgentSdkProviderApi'];
 	properties: INodeProperties[] = [
 		{
@@ -27,7 +31,7 @@ export class ClaudeAgentSdkOpenRouterApi implements ICredentialType {
 			displayName: 'Base URL',
 			name: 'url',
 			type: 'hidden',
-			default: 'https://openrouter.ai/api/v1',
+			default: PROVIDER_DEFAULTS.openrouterCredentialBaseUrl,
 		},
 	];
 

@@ -9,11 +9,21 @@ import type { McpServerUI, SubagentUI } from '../../types';
 import { buildStructuredOutputConfig } from '../executeTask/config';
 import { resolveAuthMethod } from '../../authMethod';
 import type { AuthMethod } from '../../authMethod';
+import { DEFAULT_API_PROVIDER, isApiProvider } from '../../providerConfig';
+import type { ApiProvider } from '../../providerConfig';
 
-export type SupportedApiProvider = 'anthropic' | 'openrouter' | 'ollama' | 'custom' | 'alibaba';
+export type SupportedApiProvider = ApiProvider;
 
-function resolveApiProvider(preferred: SupportedApiProvider, authMethod: AuthMethod): SupportedApiProvider {
-	if (authMethod === 'openrouter' || authMethod === 'ollama' || authMethod === 'alibaba') {
+function resolveApiProvider(
+	preferred: SupportedApiProvider,
+	authMethod: AuthMethod,
+): SupportedApiProvider {
+	if (
+		authMethod === 'openrouter' ||
+		authMethod === 'ollama' ||
+		authMethod === 'alibaba' ||
+		authMethod === 'litellm'
+	) {
 		return authMethod;
 	}
 	return preferred;
@@ -103,6 +113,7 @@ export interface ExtractedParams {
 	alibabaSonnetModel: string;
 	alibabaOpusModel: string;
 	alibabaHaikuModel: string;
+	liteLlmModel: string;
 	blockedTools: string;
 	claudeConfigDir: string;
 	useClaudeCodePreset: boolean;
@@ -139,8 +150,9 @@ export function readAllParams(ctx: IExecuteFunctions, i: number): ExtractedParam
 	};
 
 	const additionalOptions = get<Record<string, unknown>>('additionalOptions', {});
-	const rawNodeParameters = (((ctx.getNode as (() => { parameters?: Record<string, unknown> }) | undefined)?.())?.parameters ??
-		{}) as Record<string, unknown>;
+	const rawNodeParameters = ((
+		ctx.getNode as (() => { parameters?: Record<string, unknown> }) | undefined
+	)?.()?.parameters ?? {}) as Record<string, unknown>;
 	const topLevelUseClaudeCodePreset =
 		typeof rawNodeParameters.useClaudeCodePreset === 'boolean'
 			? rawNodeParameters.useClaudeCodePreset
@@ -176,32 +188,42 @@ export function readAllParams(ctx: IExecuteFunctions, i: number): ExtractedParam
 			| undefined;
 	}
 
-	const preferredProvider = (additionalOptions.apiProvider as SupportedApiProvider) || 'anthropic';
+	const preferredProvider = isApiProvider(additionalOptions.apiProvider)
+		? additionalOptions.apiProvider
+		: DEFAULT_API_PROVIDER;
 	const apiProvider = resolveApiProvider(preferredProvider, authMethod);
 
 	const rawClaudeConfigDir = ((additionalOptions.claudeConfigDir as string) || '').trim();
 	const claudeConfigIsolationMode =
-		((additionalOptions.claudeConfigIsolationMode as 'perWorkflow' | 'perSession') || 'perWorkflow');
-	const isolateClaudeConfigDir = additionalOptions.isolateClaudeConfigDir === true && !rawClaudeConfigDir;
-	const resolvedClaudeConfigDir = rawClaudeConfigDir || resolveIsolatedClaudeConfigDir({
-		workingDirectory: get<string>('workingDirectory', '') || '',
-		chatSessionId,
-		itemIndex: i,
-		isolate: isolateClaudeConfigDir,
-		mode: claudeConfigIsolationMode,
-	});
+		(additionalOptions.claudeConfigIsolationMode as 'perWorkflow' | 'perSession') || 'perWorkflow';
+	const isolateClaudeConfigDir =
+		additionalOptions.isolateClaudeConfigDir === true && !rawClaudeConfigDir;
+	const resolvedClaudeConfigDir =
+		rawClaudeConfigDir ||
+		resolveIsolatedClaudeConfigDir({
+			workingDirectory: get<string>('workingDirectory', '') || '',
+			chatSessionId,
+			itemIndex: i,
+			isolate: isolateClaudeConfigDir,
+			mode: claudeConfigIsolationMode,
+		});
 
 	const ollamaModelOverride = get<string>('ollamaModel', '').trim();
 	const ollamaModelFromAdditional = ((additionalOptions.ollamaModel as string) || '').trim();
 	const ollamaModel = ollamaModelOverride || ollamaModelFromAdditional;
+	const liteLlmModel =
+		get<string>('liteLlmModelAlias', '').trim() || get<string>('liteLlmModel', '').trim();
 
 	const enablePlugins = get<boolean>('enablePlugins', false);
 	const selectedPlugins = enablePlugins
 		? (get<string[]>('selectedPlugins', []) || []).filter((v) => v && v !== '__none__')
 		: [];
-	const additionalPluginPaths = enablePlugins ? (get<string>('additionalPluginPaths', '') || '') : '';
+	const additionalPluginPaths = enablePlugins ? get<string>('additionalPluginPaths', '') || '' : '';
 	const pluginPaths = new Set<string>(selectedPlugins);
-	for (const path of additionalPluginPaths.split(',').map((s) => s.trim()).filter(Boolean)) {
+	for (const path of additionalPluginPaths
+		.split(',')
+		.map((s) => s.trim())
+		.filter(Boolean)) {
 		pluginPaths.add(path);
 	}
 
@@ -249,10 +271,13 @@ export function readAllParams(ctx: IExecuteFunctions, i: number): ExtractedParam
 		alibabaSonnetModel: get<string>('alibabaSonnetModel', '') || '',
 		alibabaOpusModel: get<string>('alibabaOpusModel', '') || '',
 		alibabaHaikuModel: get<string>('alibabaHaikuModel', '') || '',
+		liteLlmModel,
 		blockedTools: (additionalOptions.blockedTools as string) || '',
 		claudeConfigDir: resolvedClaudeConfigDir,
-		useClaudeCodePreset: topLevelUseClaudeCodePreset ?? (additionalOptions.useClaudeCodePreset !== false),
-		envSecurityMode: ((additionalOptions.envSecurityMode as 'blocklist' | 'allowlist') || 'blocklist'),
+		useClaudeCodePreset:
+			topLevelUseClaudeCodePreset ?? additionalOptions.useClaudeCodePreset !== false,
+		envSecurityMode:
+			(additionalOptions.envSecurityMode as 'blocklist' | 'allowlist') || 'blocklist',
 		allowedEnvVarNames: ((additionalOptions.allowedEnvVarNames as string) || '').trim(),
 		isolateClaudeConfigDir,
 		claudeConfigIsolationMode,
@@ -281,7 +306,10 @@ export function sanitizeParamsForOutput(p: ExtractedParams): Record<string, unkn
 	// Merge blocked tools into disallowed for metadata
 	const allDisallowed = [...p.disallowedTools];
 	if (p.blockedTools) {
-		const blocked = p.blockedTools.split(',').map((t) => t.trim()).filter(Boolean);
+		const blocked = p.blockedTools
+			.split(',')
+			.map((t) => t.trim())
+			.filter(Boolean);
 		for (const tool of blocked) {
 			if (!allDisallowed.includes(tool)) allDisallowed.push(tool);
 		}
@@ -325,20 +353,23 @@ export function sanitizeParamsForOutput(p: ExtractedParams): Record<string, unkn
 		useSecureEnv: p.useSecureEnv || undefined,
 		proxyEnabled: p.useProxyManager || undefined,
 		plugins: p.plugins.length > 0 ? p.plugins : undefined,
-		openrouterModels: (p.openrouterSonnetModel || p.openrouterOpusModel || p.openrouterHaikuModel)
-			? {
-				sonnet: p.openrouterSonnetModel || undefined,
-				opus: p.openrouterOpusModel || undefined,
-				haiku: p.openrouterHaikuModel || undefined,
-			}
-			: undefined,
-		alibabaModels: (p.alibabaSonnetModel || p.alibabaOpusModel || p.alibabaHaikuModel)
-			? {
-				sonnet: p.alibabaSonnetModel || undefined,
-				opus: p.alibabaOpusModel || undefined,
-				haiku: p.alibabaHaikuModel || undefined,
-			}
-			: undefined,
+		openrouterModels:
+			p.openrouterSonnetModel || p.openrouterOpusModel || p.openrouterHaikuModel
+				? {
+						sonnet: p.openrouterSonnetModel || undefined,
+						opus: p.openrouterOpusModel || undefined,
+						haiku: p.openrouterHaikuModel || undefined,
+					}
+				: undefined,
+		alibabaModels:
+			p.alibabaSonnetModel || p.alibabaOpusModel || p.alibabaHaikuModel
+				? {
+						sonnet: p.alibabaSonnetModel || undefined,
+						opus: p.alibabaOpusModel || undefined,
+						haiku: p.alibabaHaikuModel || undefined,
+					}
+				: undefined,
+		liteLlmModel: p.liteLlmModel || undefined,
 		maxBufferSizeMb: p.maxBufferSizeMb > 1 ? p.maxBufferSizeMb : undefined,
 	};
 }

@@ -21,19 +21,12 @@ describe('buildEnvironment', () => {
 
 	describe('OpenRouter model overrides', () => {
 		it('should not set ANTHROPIC_DEFAULT_*_MODEL vars when no model overrides provided', () => {
-			const env = buildEnvironment(
-				'openrouter-key',
-				undefined,
-				'openrouter',
-				undefined,
-				undefined,
-				'auth-token',
-				'https://openrouter.ai/api',
-				undefined,
-				undefined,
-				undefined,
-				undefined,
-			);
+			const env = buildEnvironment({
+				apiKey: 'openrouter-key',
+				apiProvider: 'openrouter',
+				openrouterAuthToken: 'auth-token',
+				openrouterBaseUrl: 'https://openrouter.ai/api',
+			});
 
 			expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBeUndefined();
 			expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBeUndefined();
@@ -41,19 +34,13 @@ describe('buildEnvironment', () => {
 		});
 
 		it('should set only sonnet model override when only sonnet provided', () => {
-			const env = buildEnvironment(
-				'openrouter-key',
-				undefined,
-				'openrouter',
-				undefined,
-				undefined,
-				'auth-token',
-				'https://openrouter.ai/api',
-				undefined,
-				'anthropic/claude-sonnet-4',
-				undefined,
-				undefined,
-			);
+			const env = buildEnvironment({
+				apiKey: 'openrouter-key',
+				apiProvider: 'openrouter',
+				openrouterAuthToken: 'auth-token',
+				openrouterBaseUrl: 'https://openrouter.ai/api',
+				openrouterSonnetModel: 'anthropic/claude-sonnet-4',
+			});
 
 			expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('anthropic/claude-sonnet-4');
 			expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBeUndefined();
@@ -61,19 +48,15 @@ describe('buildEnvironment', () => {
 		});
 
 		it('should set all three model overrides when all provided', () => {
-			const env = buildEnvironment(
-				'openrouter-key',
-				undefined,
-				'openrouter',
-				undefined,
-				undefined,
-				'auth-token',
-				'https://openrouter.ai/api',
-				undefined,
-				'anthropic/claude-sonnet-4',
-				'anthropic/claude-opus-4',
-				'anthropic/claude-haiku-3',
-			);
+			const env = buildEnvironment({
+				apiKey: 'openrouter-key',
+				apiProvider: 'openrouter',
+				openrouterAuthToken: 'auth-token',
+				openrouterBaseUrl: 'https://openrouter.ai/api',
+				openrouterSonnetModel: 'anthropic/claude-sonnet-4',
+				openrouterOpusModel: 'anthropic/claude-opus-4',
+				openrouterHaikuModel: 'anthropic/claude-haiku-3',
+			});
 
 			expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('anthropic/claude-sonnet-4');
 			expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('anthropic/claude-opus-4');
@@ -81,19 +64,15 @@ describe('buildEnvironment', () => {
 		});
 
 		it('should pass through preset reference format correctly', () => {
-			const env = buildEnvironment(
-				'openrouter-key',
-				undefined,
-				'openrouter',
-				undefined,
-				undefined,
-				'auth-token',
-				'https://openrouter.ai/api',
-				undefined,
-				'@preset/my-setup',
-				'@preset/opus-config',
-				'@preset/haiku-fast',
-			);
+			const env = buildEnvironment({
+				apiKey: 'openrouter-key',
+				apiProvider: 'openrouter',
+				openrouterAuthToken: 'auth-token',
+				openrouterBaseUrl: 'https://openrouter.ai/api',
+				openrouterSonnetModel: '@preset/my-setup',
+				openrouterOpusModel: '@preset/opus-config',
+				openrouterHaikuModel: '@preset/haiku-fast',
+			});
 
 			expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('@preset/my-setup');
 			expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('@preset/opus-config');
@@ -101,19 +80,15 @@ describe('buildEnvironment', () => {
 		});
 
 		it('should trim whitespace from model names', () => {
-			const env = buildEnvironment(
-				'openrouter-key',
-				undefined,
-				'openrouter',
-				undefined,
-				undefined,
-				'auth-token',
-				'https://openrouter.ai/api',
-				undefined,
-				'  anthropic/claude-sonnet-4  ',
-				'  anthropic/claude-opus-4  ',
-				'  anthropic/claude-haiku-3  ',
-			);
+			const env = buildEnvironment({
+				apiKey: 'openrouter-key',
+				apiProvider: 'openrouter',
+				openrouterAuthToken: 'auth-token',
+				openrouterBaseUrl: 'https://openrouter.ai/api',
+				openrouterSonnetModel: '  anthropic/claude-sonnet-4  ',
+				openrouterOpusModel: '  anthropic/claude-opus-4  ',
+				openrouterHaikuModel: '  anthropic/claude-haiku-3  ',
+			});
 
 			expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('anthropic/claude-sonnet-4');
 			expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('anthropic/claude-opus-4');
@@ -122,57 +97,40 @@ describe('buildEnvironment', () => {
 
 		it('should not set model vars for non-OpenRouter providers even if model params provided', () => {
 			// Test with anthropic provider
-			const envAnthropic = buildEnvironment(
-				'api-key',
-				undefined,
-				'anthropic',
-				undefined,
-				undefined,
-				undefined,
-				undefined,
-				undefined,
-				'anthropic/claude-sonnet-4',
-				'anthropic/claude-opus-4',
-				'anthropic/claude-haiku-3',
-			);
+			const envAnthropic = buildEnvironment({
+				apiKey: 'api-key',
+				apiProvider: 'anthropic',
+				openrouterSonnetModel: 'anthropic/claude-sonnet-4',
+				openrouterOpusModel: 'anthropic/claude-opus-4',
+				openrouterHaikuModel: 'anthropic/claude-haiku-3',
+			});
 
 			expect(envAnthropic.ANTHROPIC_DEFAULT_SONNET_MODEL).toBeUndefined();
 			expect(envAnthropic.ANTHROPIC_DEFAULT_OPUS_MODEL).toBeUndefined();
 			expect(envAnthropic.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBeUndefined();
 
 			// Test with ollama provider
-			const envOllama = buildEnvironment(
-				undefined,
-				undefined,
-				'ollama',
-				undefined,
-				'http://localhost:11434',
-				undefined,
-				undefined,
-				undefined,
-				'anthropic/claude-sonnet-4',
-				'anthropic/claude-opus-4',
-				'anthropic/claude-haiku-3',
-			);
+			const envOllama = buildEnvironment({
+				apiProvider: 'ollama',
+				ollamaBaseUrl: 'http://localhost:11434',
+				openrouterSonnetModel: 'anthropic/claude-sonnet-4',
+				openrouterOpusModel: 'anthropic/claude-opus-4',
+				openrouterHaikuModel: 'anthropic/claude-haiku-3',
+			});
 
 			expect(envOllama.ANTHROPIC_DEFAULT_SONNET_MODEL).toBeUndefined();
 			expect(envOllama.ANTHROPIC_DEFAULT_OPUS_MODEL).toBeUndefined();
 			expect(envOllama.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBeUndefined();
 
 			// Test with custom provider
-			const envCustom = buildEnvironment(
-				'custom-key',
-				undefined,
-				'custom',
-				'https://custom.api.com',
-				undefined,
-				undefined,
-				undefined,
-				undefined,
-				'anthropic/claude-sonnet-4',
-				'anthropic/claude-opus-4',
-				'anthropic/claude-haiku-3',
-			);
+			const envCustom = buildEnvironment({
+				apiKey: 'custom-key',
+				apiProvider: 'custom',
+				customApiEndpoint: 'https://custom.api.com',
+				openrouterSonnetModel: 'anthropic/claude-sonnet-4',
+				openrouterOpusModel: 'anthropic/claude-opus-4',
+				openrouterHaikuModel: 'anthropic/claude-haiku-3',
+			});
 
 			expect(envCustom.ANTHROPIC_DEFAULT_SONNET_MODEL).toBeUndefined();
 			expect(envCustom.ANTHROPIC_DEFAULT_OPUS_MODEL).toBeUndefined();
@@ -180,19 +138,15 @@ describe('buildEnvironment', () => {
 		});
 
 		it('should not set model vars when whitespace-only values provided', () => {
-			const env = buildEnvironment(
-				'openrouter-key',
-				undefined,
-				'openrouter',
-				undefined,
-				undefined,
-				'auth-token',
-				'https://openrouter.ai/api',
-				undefined,
-				'   ',
-				'   ',
-				'   ',
-			);
+			const env = buildEnvironment({
+				apiKey: 'openrouter-key',
+				apiProvider: 'openrouter',
+				openrouterAuthToken: 'auth-token',
+				openrouterBaseUrl: 'https://openrouter.ai/api',
+				openrouterSonnetModel: '   ',
+				openrouterOpusModel: '   ',
+				openrouterHaikuModel: '   ',
+			});
 
 			expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBeUndefined();
 			expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBeUndefined();
@@ -200,19 +154,15 @@ describe('buildEnvironment', () => {
 		});
 
 		it('should not set model vars when empty strings provided', () => {
-			const env = buildEnvironment(
-				'openrouter-key',
-				undefined,
-				'openrouter',
-				undefined,
-				undefined,
-				'auth-token',
-				'https://openrouter.ai/api',
-				undefined,
-				'',
-				'',
-				'',
-			);
+			const env = buildEnvironment({
+				apiKey: 'openrouter-key',
+				apiProvider: 'openrouter',
+				openrouterAuthToken: 'auth-token',
+				openrouterBaseUrl: 'https://openrouter.ai/api',
+				openrouterSonnetModel: '',
+				openrouterOpusModel: '',
+				openrouterHaikuModel: '',
+			});
 
 			expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBeUndefined();
 			expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBeUndefined();
@@ -220,4 +170,3 @@ describe('buildEnvironment', () => {
 		});
 	});
 });
-

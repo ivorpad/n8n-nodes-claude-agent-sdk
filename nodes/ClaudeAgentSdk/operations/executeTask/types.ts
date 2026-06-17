@@ -28,8 +28,20 @@ export interface ExecuteTaskOptions {
 	ollamaBaseUrl?: string;
 	alibabaAuthToken?: string;
 	alibabaBaseUrl?: string;
+	liteLlmAuthToken?: string;
+	liteLlmBaseUrl?: string;
+	/** Resolved at runtime by ensureCodemieProxy (the local proxy URL + gateway key). */
+	codeMieBaseUrl?: string;
+	codeMieAuthToken?: string;
 	secureEnv?: Record<string, string>;
-	authMethod?: 'apiCredentials' | 'cliSession' | 'openrouter' | 'ollama' | 'alibaba';
+	authMethod?:
+		| 'apiCredentials'
+		| 'cliSession'
+		| 'openrouter'
+		| 'ollama'
+		| 'alibaba'
+		| 'litellm'
+		| 'codemie';
 	backendMode?: 'localCli' | 'managedAgent';
 	sdkModule?: ClaudeAgentSdkModule;
 	adapter: SdkAdapter;

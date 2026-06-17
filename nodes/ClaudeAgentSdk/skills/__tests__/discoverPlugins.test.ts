@@ -11,6 +11,32 @@ import {
 
 let tmpDir: string;
 
+type InstalledPluginEntry = {
+	scope: string;
+	installPath: string;
+	version: string;
+	projectPath: string;
+};
+
+function missingInstalledPluginsRegistryPath(): string {
+	return path.join(tmpDir, 'missing-installed_plugins.json');
+}
+
+async function writeInstalledPluginsRegistry(
+	plugins: Record<string, InstalledPluginEntry[]>,
+): Promise<string> {
+	const registryPath = path.join(tmpDir, 'home', '.claude', 'plugins', 'installed_plugins.json');
+	await fs.promises.mkdir(path.dirname(registryPath), { recursive: true });
+	await fs.promises.writeFile(
+		registryPath,
+		JSON.stringify({
+			version: 1,
+			plugins,
+		}),
+	);
+	return registryPath;
+}
+
 beforeEach(async () => {
 	tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'plugin-discover-'));
 });
@@ -98,14 +124,52 @@ describe('readPluginManifest', () => {
 });
 
 // ── readInstalledPluginsRegistry ─────────────────────────────────
-// Note: readInstalledPluginsRegistry reads from ~/.claude/plugins/installed_plugins.json
-// which we can't easily mock. These tests verify the function doesn't throw on the
-// real filesystem (it may return empty or actual plugins).
 
 describe('readInstalledPluginsRegistry', () => {
-	it('returns an array (may be empty if no plugins installed)', async () => {
-		const result = await readInstalledPluginsRegistry();
-		expect(Array.isArray(result)).toBe(true);
+	it('returns empty array when registry is missing', async () => {
+		const result = await readInstalledPluginsRegistry({
+			installedPluginsRegistryPath: missingInstalledPluginsRegistryPath(),
+		});
+
+		expect(result).toEqual([]);
+	});
+
+	it('reads installed plugins from a supplied registry path', async () => {
+		const pluginDir = path.join(tmpDir, 'installed', 'hookify');
+		const manifestDir = path.join(pluginDir, '.claude-plugin');
+		await fs.promises.mkdir(manifestDir, { recursive: true });
+		await fs.promises.writeFile(
+			path.join(manifestDir, 'plugin.json'),
+			JSON.stringify({
+				name: 'hookify',
+				version: '0.1.0',
+				description: 'Installed plugin',
+			}),
+		);
+		const registryPath = await writeInstalledPluginsRegistry({
+			'hookify@user': [
+				{
+					scope: 'user',
+					installPath: pluginDir,
+					version: '0.1.0',
+					projectPath: '',
+				},
+			],
+		});
+
+		const result = await readInstalledPluginsRegistry({
+			installedPluginsRegistryPath: registryPath,
+		});
+
+		expect(result).toEqual([
+			{
+				name: 'hookify',
+				description: 'Installed plugin',
+				version: '0.1.0',
+				installPath: pluginDir,
+				source: 'installed',
+			},
+		]);
 	});
 });
 
@@ -125,58 +189,115 @@ describe('discoverPlugins', () => {
 			}),
 		);
 
-		const plugins = await discoverPlugins(projectDir);
+		const plugins = await discoverPlugins(projectDir, {
+			installedPluginsRegistryPath: missingInstalledPluginsRegistryPath(),
+		});
 
-		const projectPlugin = plugins.find((p) => p.name === 'my-project-plugin');
-		expect(projectPlugin).toBeDefined();
-		expect(projectPlugin!.source).toBe('project');
-		expect(projectPlugin!.installPath).toBe(projectDir);
-		expect(projectPlugin!.description).toBe('Project-level plugin');
+		expect(plugins).toEqual([
+			expect.objectContaining({
+				name: 'my-project-plugin',
+				source: 'project',
+				installPath: projectDir,
+				description: 'Project-level plugin',
+			}),
+		]);
 	});
 
 	it('returns empty project plugin when no .claude-plugin directory', async () => {
 		const projectDir = path.join(tmpDir, 'empty-project');
 		await fs.promises.mkdir(projectDir, { recursive: true });
 
-		const plugins = await discoverPlugins(projectDir);
+		const plugins = await discoverPlugins(projectDir, {
+			installedPluginsRegistryPath: missingInstalledPluginsRegistryPath(),
+		});
 
-		// Should only contain installed plugins (if any), no project plugin
-		const projectPlugins = plugins.filter((p) => p.source === 'project');
-		expect(projectPlugins).toHaveLength(0);
+		expect(plugins).toEqual([]);
 	});
 
 	it('returns only installed plugins when no working directory', async () => {
-		const plugins = await discoverPlugins();
-		expect(Array.isArray(plugins)).toBe(true);
-		// All returned plugins should be 'installed' source
-		for (const p of plugins) {
-			expect(p.source).toBe('installed');
-		}
+		const pluginDir = path.join(tmpDir, 'installed-only');
+		const manifestDir = path.join(pluginDir, '.claude-plugin');
+		await fs.promises.mkdir(manifestDir, { recursive: true });
+		await fs.promises.writeFile(
+			path.join(manifestDir, 'plugin.json'),
+			JSON.stringify({
+				name: 'installed-only',
+				version: '2.0.0',
+				description: 'Installed only',
+			}),
+		);
+		const registryPath = await writeInstalledPluginsRegistry({
+			'installed-only@user': [
+				{
+					scope: 'user',
+					installPath: pluginDir,
+					version: '2.0.0',
+					projectPath: '',
+				},
+			],
+		});
+
+		const plugins = await discoverPlugins(undefined, {
+			installedPluginsRegistryPath: registryPath,
+		});
+
+		expect(plugins).toEqual([
+			expect.objectContaining({
+				name: 'installed-only',
+				source: 'installed',
+				installPath: pluginDir,
+			}),
+		]);
 	});
 
 	it('deduplicates installed vs project plugin by name', async () => {
-		// Create a project plugin that mimics the name of an installed plugin
-		// Since we can't control installed_plugins.json, we test the dedup logic directly
+		const installedPluginDir = path.join(tmpDir, 'installed-dupe');
+		const installedManifestDir = path.join(installedPluginDir, '.claude-plugin');
+		await fs.promises.mkdir(installedManifestDir, { recursive: true });
+		await fs.promises.writeFile(
+			path.join(installedManifestDir, 'plugin.json'),
+			JSON.stringify({
+				name: 'dupe-plugin',
+				version: '1.0.0',
+				description: 'Installed plugin wins',
+			}),
+		);
+		const registryPath = await writeInstalledPluginsRegistry({
+			'dupe-plugin@user': [
+				{
+					scope: 'user',
+					installPath: installedPluginDir,
+					version: '1.0.0',
+					projectPath: '',
+				},
+			],
+		});
+
 		const projectDir = path.join(tmpDir, 'dedup-test');
 		const manifestDir = path.join(projectDir, '.claude-plugin');
 		await fs.promises.mkdir(manifestDir, { recursive: true });
 		await fs.promises.writeFile(
 			path.join(manifestDir, 'plugin.json'),
 			JSON.stringify({
-				name: 'unique-test-plugin-name-unlikely-to-exist',
+				name: 'dupe-plugin',
 				version: '1.0.0',
-				description: 'Test plugin for dedup',
+				description: 'Project plugin loses',
 			}),
 		);
 
-		const plugins = await discoverPlugins(projectDir);
+		const plugins = await discoverPlugins(projectDir, {
+			installedPluginsRegistryPath: registryPath,
+		});
 
-		// The project plugin should appear exactly once
-		const matches = plugins.filter(
-			(p) => p.name === 'unique-test-plugin-name-unlikely-to-exist',
-		);
+		const matches = plugins.filter((p) => p.name === 'dupe-plugin');
 		expect(matches).toHaveLength(1);
-		expect(matches[0].source).toBe('project');
+		expect(matches[0]).toEqual(
+			expect.objectContaining({
+				source: 'installed',
+				installPath: installedPluginDir,
+				description: 'Installed plugin wins',
+			}),
+		);
 	});
 
 	it('handles corrupt project plugin.json gracefully', async () => {
@@ -189,9 +310,10 @@ describe('discoverPlugins', () => {
 		);
 
 		// Should not throw, just skip the project plugin
-		const plugins = await discoverPlugins(projectDir);
-		expect(Array.isArray(plugins)).toBe(true);
-		const projectPlugins = plugins.filter((p) => p.source === 'project');
-		expect(projectPlugins).toHaveLength(0);
+		const plugins = await discoverPlugins(projectDir, {
+			installedPluginsRegistryPath: missingInstalledPluginsRegistryPath(),
+		});
+
+		expect(plugins).toEqual([]);
 	});
 });

@@ -1,4 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { PROVIDER_DEFAULTS } from '../providerConfig';
 
 export const ollamaModelProperty: INodeProperties = {
 	displayName: 'Model',
@@ -14,7 +15,7 @@ export const ollamaModelProperty: INodeProperties = {
 				request: {
 					method: 'GET',
 					url:
-						'={{String($parameter.additionalOptions?.ollamaBaseUrl || "http://localhost:11434")' +
+						`={{String($parameter.additionalOptions?.ollamaBaseUrl || "${PROVIDER_DEFAULTS.ollamaBaseUrl}")` +
 						'.replace(/\\/$/, "") + "/api/tags"}}',
 				},
 				output: {

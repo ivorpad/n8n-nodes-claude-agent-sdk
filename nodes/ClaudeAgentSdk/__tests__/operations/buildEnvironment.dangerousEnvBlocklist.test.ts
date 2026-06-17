@@ -26,34 +26,21 @@ describe('buildEnvironment — dangerous env blocklist', () => {
 	it.each(newlyBlockedVars)('strips %s from user-provided additional env', (varName) => {
 		const additionalEnv = JSON.stringify({ [varName]: '/tmp/evil', SAFE_VAR: 'ok' });
 
-		const env = buildEnvironment('test-key', additionalEnv);
+		const env = buildEnvironment({ apiKey: 'test-key', additionalEnv: additionalEnv });
 
 		expect(env[varName]).toBeUndefined();
 		expect(env.SAFE_VAR).toBe('ok');
 	});
 
 	it('strips dangerous vars from secure credential env too', () => {
-		const env = buildEnvironment(
-			'test-key',
-			undefined,
-			'anthropic',
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			{ GIT_SSH_COMMAND: 'ssh -o ProxyCommand=evil', SAFE_SECRET: 'keep' },
-		);
+		const secureEnv = { GIT_SSH_COMMAND: 'ssh -o ProxyCommand=evil', SAFE_SECRET: 'keep' };
+		const env = buildEnvironment({ apiKey: 'test-key', apiProvider: 'anthropic', secureEnv });
 
 		expect(env.GIT_SSH_COMMAND).toBeUndefined();
 		expect(env.SAFE_SECRET).toBe('keep');
+		expect(secureEnv).toEqual({
+			GIT_SSH_COMMAND: 'ssh -o ProxyCommand=evil',
+			SAFE_SECRET: 'keep',
+		});
 	});
 });

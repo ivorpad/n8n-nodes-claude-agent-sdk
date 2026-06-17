@@ -168,6 +168,14 @@ describe('node properties compatibility', () => {
 		expect(hasLoadOptionsMethod(findProperty(executeTaskCoreProperties, 'disallowedTools'), 'listToolOptions')).toBe(true);
 	});
 
+	it('loads LiteLLM model aliases via a node loadOptions method', () => {
+		const property = findProperty(executeTaskCoreProperties, 'liteLlmModel');
+		const typeOptions = asRecord(property.typeOptions);
+
+		expect(hasLoadOptionsMethod(property, 'listLiteLlmModels')).toBe(true);
+		expect(typeOptions?.loadOptions).toBeUndefined();
+	});
+
 	it('loads AGT and HITL tool selectors dynamically from configured MCP servers', () => {
 		expect(hasLoadOptionsMethod(findProperty(approvalProperties, 'toolsRequiringApproval'), 'listToolOptions')).toBe(true);
 		expect(hasLoadOptionsMethod(findAgtRuleToolsProperty(), 'listToolOptions')).toBe(true);
@@ -218,6 +226,7 @@ describe('node properties compatibility', () => {
 			expect.arrayContaining([
 				'apiProvider',
 				'customApiEndpoint',
+				'liteLlmNotice',
 				'ollamaBaseUrl',
 				'ollamaModel',
 				'ollamaNotice',
@@ -253,6 +262,7 @@ describe('node properties compatibility', () => {
 
 		expect(findProperty(options, 'apiProvider').default).toBe('anthropic');
 		expect(findProperty(options, 'customApiEndpoint').default).toBe('');
+		expect(findProperty(options, 'liteLlmNotice').default).toBe('');
 		expect(findProperty(options, 'ollamaBaseUrl').default).toBe('http://localhost:11434');
 		expect(findProperty(options, 'ollamaModel').default).toBe('qwen2.5-coder:latest');
 		expect(findProperty(options, 'env').default).toBe('{}');

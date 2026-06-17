@@ -22,13 +22,16 @@ import {
 } from './errors';
 import { isNodeCredentialType, resolveAuthMethod } from '../authMethod';
 import type { AuthMethod } from '../authMethod';
+import { loadCodeMieCompanion } from '../codemie/companion';
 
 type OptionalCredentialKey =
 	| 'claudeApi'
 	| 'anthropicApi'
 	| 'openRouterApi'
 	| 'claudeAgentSdkOpenRouterApi'
-	| 'alibabaCodingPlanApi';
+	| 'alibabaCodingPlanApi'
+	| 'claudeAgentSdkLiteLlmApi'
+	| 'codeMieSsoApi';
 
 interface LoadedAuthValues {
 	apiKey?: string;
@@ -39,6 +42,10 @@ interface LoadedAuthValues {
 	ollamaBaseUrl?: string;
 	alibabaAuthToken?: string;
 	alibabaBaseUrl?: string;
+	liteLlmAuthToken?: string;
+	liteLlmBaseUrl?: string;
+	codeMieBaseUrl?: string;
+	codeMieAuthToken?: string;
 }
 
 function validateSelectedCredentialType(
@@ -51,7 +58,7 @@ function validateSelectedCredentialType(
 	}
 
 	const supportedCredentialTypes =
-		'Claude Agent SDK Anthropic API, Claude Agent SDK OpenRouter API, or Alibaba Coding Plan API';
+		'Claude Agent SDK Anthropic API, Claude Agent SDK OpenRouter API, Alibaba Coding Plan API, or Claude Agent SDK LiteLLM API';
 	const selectedCredentialType = nodeCredentialType.trim();
 	const message = selectedCredentialType
 		? `Credential Type "${selectedCredentialType}" is not supported by Claude Agent SDK. Select ${supportedCredentialTypes}.`
@@ -166,6 +173,49 @@ async function loadAuthValues(
 		};
 	}
 
+	if (authMethod === 'litellm') {
+		const credentials = await tryLoadOptionalCredential<{
+			apiKey?: string;
+			authToken?: string;
+			baseUrl?: string;
+			url?: string;
+		}>(
+			ctx,
+			'claudeAgentSdkLiteLlmApi',
+			(error) => `Failed to load LiteLLM credentials. ${formatCredentialLoadError(error)}`,
+		);
+
+		const resolvedApiKey = credentials?.apiKey || credentials?.authToken;
+		return {
+			liteLlmAuthToken: resolvedApiKey,
+			liteLlmBaseUrl: credentials?.baseUrl || credentials?.url,
+		};
+	}
+
+	if (authMethod === 'codemie') {
+		// The CodeMie SSO credential holds the instance URL + pasted token; the
+		// SSO session itself lives in the proxy daemon's encrypted store. Here we
+		// just resolve the running proxy (start/reuse) via the companion package
+		// and surface its loopback URL + gateway key as the provider auth values.
+		const credentials = await tryLoadOptionalCredential<{ instanceUrl?: string }>(
+			ctx,
+			'codeMieSsoApi',
+			(error) => `Failed to load CodeMie SSO credentials. ${formatCredentialLoadError(error)}`,
+		);
+		const instanceUrl = (credentials?.instanceUrl || '').trim();
+		if (!instanceUrl) {
+			throw new NodeOperationError(
+				ctx.getNode(),
+				'CodeMie Proxy requires an Instance URL in the CodeMie SSO credential.',
+			);
+		}
+		const proxy = await loadCodeMieCompanion().ensureCodemieProxy({ instanceUrl });
+		return {
+			codeMieBaseUrl: proxy.url,
+			codeMieAuthToken: proxy.gatewayKey,
+		};
+	}
+
 	return {};
 }
 
@@ -189,13 +239,24 @@ function isTerminalQuestionResponse(itemJson: Record<string, unknown> | undefine
 	return itemJson.type === 'question_response' && itemJson.responseAction === 'complete';
 }
 
+function isExecuteTaskLoopbackPayload(itemJson: Record<string, unknown> | undefined): boolean {
+	if (!itemJson) return false;
+	return itemJson.type === 'task_result' || isTerminalQuestionResponse(itemJson);
+}
+
+function hasAuditLoggingOutputEnabled(ctx: IExecuteFunctions): boolean {
+	const secOpts = ctx.getNodeParameter('securityOptions', 0, {}) as Record<string, unknown>;
+	const auditLogging = secOpts.auditLogging as Record<string, unknown> | undefined;
+	const auditSettings = auditLogging?.settings as Record<string, unknown> | undefined;
+	return auditSettings?.enabled === true;
+}
+
 export async function execute(
 	this: IExecuteFunctions,
 	response?: EngineResponse,
 ): Promise<INodeExecutionData[][] | EngineRequest> {
 	const items = this.getInputData();
 	const operation = this.getNodeParameter('operation', 0, 'executeTask') as string;
-	const firstItemJson = items[0]?.json as Record<string, unknown> | undefined;
 
 	// Skip internal loopback payloads so HITL completions do not regenerate themselves.
 	if (operation === 'generatePythonSdk') {
@@ -213,12 +274,11 @@ export async function execute(
 	// Pass completed task results through without re-executing Claude.
 	if (
 		operation === 'executeTask' &&
-		(firstItemJson?.type === 'task_result' || isTerminalQuestionResponse(firstItemJson))
+		items.length > 0 &&
+		items.every((item) => isExecuteTaskLoopbackPayload(item.json as Record<string, unknown> | undefined))
 	) {
 		const outputs: INodeExecutionData[][] = [items];
-		const secOpts = this.getNodeParameter('securityOptions', 0, {}) as Record<string, unknown>;
-		const auditSettings = (secOpts?.auditLogging as Record<string, unknown>)?.settings as Record<string, unknown>;
-		if (auditSettings?.enabled === true) outputs.push([]);
+		if (hasAuditLoggingOutputEnabled(this)) outputs.push([]);
 		return outputs;
 	}
 
@@ -241,6 +301,10 @@ export async function execute(
 		ollamaBaseUrl,
 		alibabaAuthToken,
 		alibabaBaseUrl,
+		liteLlmAuthToken,
+		liteLlmBaseUrl,
+		codeMieBaseUrl,
+		codeMieAuthToken,
 	} = loadedAuthValues;
 
 	if (operation === 'manageManagedAgent') {
@@ -302,6 +366,15 @@ export async function execute(
 
 	for (let i = 0; i < items.length; i++) {
 		try {
+			const item = items[i];
+			if (
+				operation === 'executeTask' &&
+				isExecuteTaskLoopbackPayload(item?.json as Record<string, unknown> | undefined)
+			) {
+				if (item) returnData.push(item);
+				continue;
+			}
+
 			const backendMode = this.getNodeParameter('backendMode', i, 'localCli') as
 				| 'localCli'
 				| 'managedAgent';
@@ -369,9 +442,21 @@ export async function execute(
 				const selectedOllamaModel = authMethod === 'ollama'
 					? (this.getNodeParameter('ollamaModel', i, '') as string).trim()
 					: undefined;
+				const selectedLiteLlmModel = authMethod === 'litellm'
+					? (
+						(this.getNodeParameter('liteLlmModelAlias', i, '') as string).trim() ||
+						(this.getNodeParameter('liteLlmModel', i, '') as string).trim()
+					)
+					: undefined;
+				const selectedCodeMieModel = authMethod === 'codemie'
+					? (
+						(this.getNodeParameter('codeMieModelManual', i, '') as string).trim() ||
+						(this.getNodeParameter('codeMieModel', i, '') as string).trim()
+					)
+					: undefined;
 			setExecutionContext({
-				provider: authMethod === 'ollama' ? 'ollama' : authMethod === 'openrouter' ? 'openrouter' : authMethod === 'alibaba' ? 'alibaba' : 'anthropic',
-				model: selectedOllamaModel || undefined,
+				provider: authMethod === 'ollama' ? 'ollama' : authMethod === 'openrouter' ? 'openrouter' : authMethod === 'alibaba' ? 'alibaba' : authMethod === 'litellm' ? 'litellm' : authMethod === 'codemie' ? 'codemie' : 'anthropic',
+				model: selectedOllamaModel || selectedLiteLlmModel || selectedCodeMieModel || undefined,
 			});
 
 			const result = await executeTaskOperation(this, i, {
@@ -383,6 +468,10 @@ export async function execute(
 				ollamaBaseUrl,
 				alibabaAuthToken,
 				alibabaBaseUrl,
+				liteLlmAuthToken,
+				liteLlmBaseUrl,
+				codeMieBaseUrl,
+				codeMieAuthToken,
 				secureEnv,
 				authMethod,
 				adapter,

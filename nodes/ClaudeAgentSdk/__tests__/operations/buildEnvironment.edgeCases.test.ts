@@ -28,7 +28,7 @@ describe('buildEnvironment', () => {
 			delete process.env.TERM;
 			delete process.env.ANTHROPIC_API_KEY;
 
-			const env = buildEnvironment(undefined, undefined);
+			const env = buildEnvironment({});
 
 			// Should provide defaults for critical variables
 			expect(env.SHELL).toBe('/bin/bash');
@@ -41,7 +41,7 @@ describe('buildEnvironment', () => {
 		it('should not leak auth token to API key for anthropic provider', () => {
 			process.env.ANTHROPIC_AUTH_TOKEN = 'should-not-appear';
 
-			const env = buildEnvironment('test-key', undefined, 'anthropic');
+			const env = buildEnvironment({ apiKey: 'test-key', apiProvider: 'anthropic' });
 
 			expect(env.ANTHROPIC_API_KEY).toBe('test-key');
 			expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
@@ -53,7 +53,7 @@ describe('buildEnvironment', () => {
 				LONG_VAR: longValue,
 			});
 
-			const env = buildEnvironment('test-key', additionalEnv);
+			const env = buildEnvironment({ apiKey: 'test-key', additionalEnv: additionalEnv });
 
 			expect(env.LONG_VAR).toBe(longValue);
 			expect((env.LONG_VAR as string).length).toBe(10000);
@@ -66,7 +66,7 @@ describe('buildEnvironment', () => {
 				NEWLINE: 'line1\nline2',
 			});
 
-			const env = buildEnvironment('test-key', additionalEnv);
+			const env = buildEnvironment({ apiKey: 'test-key', additionalEnv: additionalEnv });
 
 			expect(env.SPECIAL).toBe('!@#$%^&*()_+-=[]{}|;:\'",.<>?/\\`~');
 			expect(env.UNICODE).toBe('你好世界🌍');
@@ -80,7 +80,7 @@ describe('buildEnvironment', () => {
 				NEGATIVE: -42,
 			});
 
-			const env = buildEnvironment('test-key', additionalEnv);
+			const env = buildEnvironment({ apiKey: 'test-key', additionalEnv: additionalEnv });
 
 			// Canonical subprocess env is { [name]: string | undefined } — numbers
 			// are stringified exactly as child_process would at spawn time.
@@ -95,7 +95,7 @@ describe('buildEnvironment', () => {
 				DISABLED: false,
 			});
 
-			const env = buildEnvironment('test-key', additionalEnv);
+			const env = buildEnvironment({ apiKey: 'test-key', additionalEnv: additionalEnv });
 
 			expect(env.ENABLED).toBe('true');
 			expect(env.DISABLED).toBe('false');

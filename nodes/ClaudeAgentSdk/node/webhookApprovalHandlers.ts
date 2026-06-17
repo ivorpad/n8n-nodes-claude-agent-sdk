@@ -7,6 +7,7 @@ import {
 	buildChannelReplyDecisionId,
 	buildChannelReplyDecisionKey,
 } from '../../ClaudeAgentChannelShared/core/channelReplyContract';
+import { isN8nQueueMode } from '../../ClaudeAgentChannelShared/core/queueMode';
 import { parseApprovalDecision } from '../../ClaudeAgentChannelShared/core/webhookRuntime';
 import {
 	type WebhookQuery,
@@ -157,6 +158,10 @@ async function consumeApprovalDecision(args: {
 	const { ctx, requestId, storedInteraction, hitlInteractionStore } = handlerArgs;
 
 	if (!storedInteraction) {
+		if (isN8nQueueMode()) {
+			return { status: 'missing' };
+		}
+
 		return {
 			status: consumeWebhookDecision(ctx, requestId, decision.decisionKey) as
 				| 'accepted'

@@ -4,6 +4,7 @@
 
 import type { INodeProperties } from 'n8n-workflow';
 import { CLAUDE_CODE_PROMPT_SECTION_OPTIONS } from '../claudeCodePromptSections';
+import { DEFAULT_API_PROVIDER, PROVIDER_DEFAULTS } from '../providerConfig';
 
 export const claudeCodePresetProperties: INodeProperties[] = [
 	{
@@ -64,7 +65,8 @@ export const additionalOptionsProperty: INodeProperties = {
 					'/additionalOptions.envSecurityMode': ['allowlist'],
 				},
 			},
-			description: 'Comma-separated env variable names to allow in addition to essential Claude variables',
+			description:
+				'Comma-separated env variable names to allow in addition to essential Claude variables',
 		},
 		{
 			displayName: 'API Provider',
@@ -74,10 +76,11 @@ export const additionalOptionsProperty: INodeProperties = {
 				{ name: 'Alibaba Coding Plan', value: 'alibaba' },
 				{ name: 'Anthropic (Official)', value: 'anthropic' },
 				{ name: 'Custom Endpoint', value: 'custom' },
+				{ name: 'LiteLLM', value: 'litellm' },
 				{ name: 'Ollama (Local)', value: 'ollama' },
 				{ name: 'OpenRouter', value: 'openrouter' },
 			],
-			default: 'anthropic',
+			default: DEFAULT_API_PROVIDER,
 			description:
 				'Execution provider for Claude Code. Credential Type set to OpenRouter/Alibaba, or Authentication set to Ollama, overrides this selector.',
 		},
@@ -86,7 +89,11 @@ export const additionalOptionsProperty: INodeProperties = {
 			name: 'betas',
 			type: 'multiOptions',
 			options: [
-				{ name: '1M Context Window', value: 'context-1m-2025-08-07', description: 'Enable 1M context window beta' },
+				{
+					name: '1M Context Window',
+					value: 'context-1m-2025-08-07',
+					description: 'Enable 1M context window beta',
+				},
 			],
 			default: [],
 			description: 'Enable SDK beta features',
@@ -133,7 +140,7 @@ export const additionalOptionsProperty: INodeProperties = {
 			},
 			description:
 				'Per Workflow keeps state stable across runs of the same workflow. ' +
-					'Per Session isolates each deterministic chat/session ID further.',
+				'Per Session isolates each deterministic chat/session ID further.',
 		},
 		{
 			displayName: 'Correlation ID',
@@ -168,7 +175,8 @@ export const additionalOptionsProperty: INodeProperties = {
 			name: 'promptSuggestions',
 			type: 'boolean',
 			default: false,
-			description: 'Whether to emit a suggested next user prompt after each turn. Useful for chat UIs building autocomplete.',
+			description:
+				'Whether to emit a suggested next user prompt after each turn. Useful for chat UIs building autocomplete.',
 		},
 		{
 			displayName: 'Enable Proxy Manager',
@@ -197,7 +205,8 @@ export const additionalOptionsProperty: INodeProperties = {
 				},
 			],
 			default: 'blocklist',
-			description: 'Blocklist removes known-dangerous env vars. Allowlist passes only approved variables.',
+			description:
+				'Blocklist removes known-dangerous env vars. Allowlist passes only approved variables.',
 		},
 		{
 			displayName: 'Environment Variables (JSON)',
@@ -213,7 +222,8 @@ export const additionalOptionsProperty: INodeProperties = {
 			name: 'forwardSubagentText',
 			type: 'boolean',
 			default: false,
-			description: 'Whether to forward nested subagent text and thinking blocks with parent tool-use attribution for streaming clients',
+			description:
+				'Whether to forward nested subagent text and thinking blocks with parent tool-use attribution for streaming clients',
 		},
 		{
 			displayName: 'Include Partial Messages',
@@ -227,7 +237,8 @@ export const additionalOptionsProperty: INodeProperties = {
 			name: 'useSecureEnv',
 			type: 'boolean',
 			default: false,
-			description: 'Whether to inject API keys and secrets from the "Secure Environment Variables" credential into the Claude subprocess and resolve ${VAR} placeholders in MCP HTTP headers. Values are encrypted at rest and best-effort redacted from the node output, streamed events, observability log, HITL store, and error messages (exact-value masking).',
+			description:
+				'Whether to inject API keys and secrets from the "Secure Environment Variables" credential into the Claude subprocess and resolve ${VAR} placeholders in MCP HTTP headers. Values are encrypted at rest and best-effort redacted from the node output, streamed events, observability log, HITL store, and error messages (exact-value masking).',
 		},
 		{
 			displayName: 'Isolate Claude Config Directory',
@@ -239,14 +250,16 @@ export const additionalOptionsProperty: INodeProperties = {
 					'/additionalOptions.claudeConfigDir': [''],
 				},
 			},
-			description: 'Whether to store Claude session/config state in a workflow/session-scoped directory inside the working directory',
+			description:
+				'Whether to store Claude session/config state in a workflow/session-scoped directory inside the working directory',
 		},
 		{
 			displayName: 'Load Project CLAUDE.md',
 			name: 'loadProjectClaudeMd',
 			type: 'boolean',
 			default: true,
-			description: 'Whether to load CLAUDE.md, settings, and skills from the working directory .claude/ folder',
+			description:
+				'Whether to load CLAUDE.md, settings, and skills from the working directory .claude/ folder',
 		},
 		{
 			displayName: 'Load User Settings',
@@ -256,13 +269,27 @@ export const additionalOptionsProperty: INodeProperties = {
 			description: 'Whether to load settings and skills from ~/.claude/',
 		},
 		{
+			displayName: 'LiteLLM Setup',
+			name: 'liteLlmNotice',
+			type: 'notice',
+			default: '',
+			displayOptions: {
+				show: {
+					'/additionalOptions.apiProvider': ['litellm'],
+				},
+			},
+			description:
+				'LiteLLM uses the Claude Agent SDK LiteLLM API credential. Authentication = LiteLLM is recommended so the credential picker and model alias loader are available.',
+		},
+		{
 			displayName: 'Managed Settings (JSON)',
 			name: 'managedSettings',
 			type: 'string',
 			typeOptions: { rows: 4 },
 			default: '',
 			placeholder: '{"sandbox":{"network":{"allowManagedDomainsOnly":true}}}',
-			description: 'Policy-tier settings injected into the spawned CLI. Loaded into the managed (policy) layer; user/project settings cannot widen restrictions set here. Must be a JSON object.',
+			description:
+				'Policy-tier settings injected into the spawned CLI. Loaded into the managed (policy) layer; user/project settings cannot widen restrictions set here. Must be a JSON object.',
 		},
 		{
 			displayName: 'Max Budget (USD)',
@@ -291,8 +318,8 @@ export const additionalOptionsProperty: INodeProperties = {
 			displayName: 'Ollama Base URL',
 			name: 'ollamaBaseUrl',
 			type: 'string',
-			default: 'http://localhost:11434',
-			placeholder: 'http://localhost:11434',
+			default: PROVIDER_DEFAULTS.ollamaBaseUrl,
+			placeholder: PROVIDER_DEFAULTS.ollamaBaseUrl,
 			displayOptions: {
 				show: {
 					'/additionalOptions.apiProvider': ['ollama'],
@@ -304,8 +331,8 @@ export const additionalOptionsProperty: INodeProperties = {
 			displayName: 'Ollama Model',
 			name: 'ollamaModel',
 			type: 'string',
-			default: 'qwen2.5-coder:latest',
-			placeholder: 'qwen2.5-coder:latest',
+			default: PROVIDER_DEFAULTS.ollamaModel,
+			placeholder: PROVIDER_DEFAULTS.ollamaModel,
 			displayOptions: {
 				show: {
 					'/additionalOptions.apiProvider': ['ollama'],
@@ -359,7 +386,8 @@ export const additionalOptionsProperty: INodeProperties = {
 					'/additionalOptions.useProxyManager': [true],
 				},
 			},
-			description: 'Path to proxy CA certificate bundle inside the Claude subprocess (for TLS interception)',
+			description:
+				'Path to proxy CA certificate bundle inside the Claude subprocess (for TLS interception)',
 		},
 		{
 			displayName: 'Proxy HTTP URL',
@@ -386,8 +414,7 @@ export const additionalOptionsProperty: INodeProperties = {
 					'/additionalOptions.useProxyManager': [true],
 				},
 			},
-			description:
-				'Proxy endpoint for TLS interception traffic. Use the URL your proxy exposes.',
+			description: 'Proxy endpoint for TLS interception traffic. Use the URL your proxy exposes.',
 		},
 		{
 			displayName: 'Proxy No-Proxy List',
@@ -407,7 +434,8 @@ export const additionalOptionsProperty: INodeProperties = {
 			name: 'sessionTitle',
 			type: 'string',
 			default: '',
-			description: 'Custom title for new sessions. When omitted, the SDK auto-generates one from the first user message. Ignored when resuming an existing session.',
+			description:
+				'Custom title for new sessions. When omitted, the SDK auto-generates one from the first user message. Ignored when resuming an existing session.',
 		},
 		{
 			displayName: 'Skills Filter',
@@ -415,7 +443,8 @@ export const additionalOptionsProperty: INodeProperties = {
 			type: 'string',
 			default: '',
 			placeholder: 'all  OR  pdf, docx',
-			description: 'Filter Skills loaded into the session. Use "all" to enable every discovered skill, or comma-separated names to enable a subset. Leave empty for SDK default (no filter).',
+			description:
+				'Filter Skills loaded into the session. Use "all" to enable every discovered skill, or comma-separated names to enable a subset. Leave empty for SDK default (no filter).',
 		},
 		{
 			displayName: 'System Prompt',

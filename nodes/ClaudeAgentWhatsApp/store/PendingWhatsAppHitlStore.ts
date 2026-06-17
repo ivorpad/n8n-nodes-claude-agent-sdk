@@ -1,6 +1,7 @@
 import type { IExecuteFunctions, IWebhookFunctions } from 'n8n-workflow';
 
 import { createPendingHitlStore } from '../../ClaudeAgentChannelShared/core/pendingStore';
+import { assertStaticDataStoreQueueSafe } from '../../ClaudeAgentChannelShared/core/queueMode';
 import {
 	consumePendingHitlRecordWithDecisionPostgres,
 	getLatestPendingHitlRecordByRecipientPostgres,
@@ -70,6 +71,11 @@ export async function getPendingByProviderMessageId(
 		return getPendingHitlRecordByProviderMessageIdPostgres(ctx, args, asPostgresConfig(config));
 	}
 
+	assertStaticDataStoreQueueSafe(
+		ctx,
+		'WhatsApp HITL pending store',
+		'Set Pending Store Backend to Postgres for WhatsApp HITL callbacks in queue mode.',
+	);
 	const staticData = ctx.getWorkflowStaticData('node') as Record<string, unknown>;
 	const store = (staticData[STORE_KEY] as Record<string, PendingWhatsAppHitlRecord> | undefined) ?? {};
 	return Object.values(store).find((record) =>
@@ -90,6 +96,11 @@ export async function getLatestPendingByRecipient(
 		return getLatestPendingHitlRecordByRecipientPostgres(ctx, args, asPostgresConfig(config));
 	}
 
+	assertStaticDataStoreQueueSafe(
+		ctx,
+		'WhatsApp HITL pending store',
+		'Set Pending Store Backend to Postgres for WhatsApp HITL callbacks in queue mode.',
+	);
 	const staticData = ctx.getWorkflowStaticData('node') as Record<string, unknown>;
 	const store = (staticData[STORE_KEY] as Record<string, PendingWhatsAppHitlRecord> | undefined) ?? {};
 	return Object.values(store)

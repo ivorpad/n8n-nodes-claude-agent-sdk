@@ -281,7 +281,7 @@ describe('setupInteractiveApprovals', () => {
 			answers: { 'field-0': 'Summary' },
 		});
 		expect(result.taskDescription).toBe('Original task');
-		expect(result.executionPrompt).toBeUndefined();
+		expect(result.executionPrompt).toBe('Continue with the task.');
 	});
 });
 

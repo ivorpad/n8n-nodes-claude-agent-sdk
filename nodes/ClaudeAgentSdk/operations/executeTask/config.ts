@@ -21,6 +21,11 @@ import {
 // Environment assembly moved to ./environment — re-exported here so existing
 // importers (querySetupParts, index, tests) keep their import path.
 export { buildEnvironment, buildMcpHeaderEnvironment } from './environment';
+export type {
+	BuildEnvironmentOptions,
+	EnvironmentSecurityOptions,
+	ProxyManagerConfig,
+} from './environment';
 
 /**
  * Build system prompt configuration
@@ -44,9 +49,9 @@ export function buildSystemPromptConfig(
 ): UpstreamQueryOptions['systemPrompt'] {
 	const selectedClaudeCodePrompt = claudeCodePromptContext
 		? buildSelectedClaudeCodePrompt({
-			selectedSections: selectedClaudeCodePromptSections,
-			context: claudeCodePromptContext,
-		})
+				selectedSections: selectedClaudeCodePromptSections,
+				context: claudeCodePromptContext,
+			})
 		: undefined;
 	const fullAppend = [selectedClaudeCodePrompt, customPrompt, subagentInstructions]
 		.filter((value): value is string => Boolean(value))
@@ -82,13 +87,20 @@ export function buildStructuredOutputConfig(
 	execFunctions: IExecuteFunctions,
 	itemIndex: number,
 ): UpstreamQueryOptions['outputFormat'] {
-	const structuredOutput = execFunctions.getNodeParameter('structuredOutput', itemIndex, false) as boolean;
+	const structuredOutput = execFunctions.getNodeParameter(
+		'structuredOutput',
+		itemIndex,
+		false,
+	) as boolean;
 
 	if (!structuredOutput) {
 		return undefined;
 	}
 
-	const schemaType = execFunctions.getNodeParameter('schemaType', itemIndex, 'fromAttributes') as 'fromAttributes' | 'fromJson' | 'manual';
+	const schemaType = execFunctions.getNodeParameter('schemaType', itemIndex, 'fromAttributes') as
+		| 'fromAttributes'
+		| 'fromJson'
+		| 'manual';
 
 	let outputSchema: JsonSchema;
 	try {
@@ -102,10 +114,18 @@ export function buildStructuredOutputConfig(
 			}
 			outputSchema = generateSchemaFromAttributes(attributes);
 		} else if (schemaType === 'fromJson') {
-			const jsonExample = execFunctions.getNodeParameter('jsonSchemaExample', itemIndex, '{}') as string;
+			const jsonExample = execFunctions.getNodeParameter(
+				'jsonSchemaExample',
+				itemIndex,
+				'{}',
+			) as string;
 			outputSchema = generateSchemaFromExample(jsonExample);
 		} else {
-			const manualSchema = execFunctions.getNodeParameter('outputJsonSchema', itemIndex, '{}') as string;
+			const manualSchema = execFunctions.getNodeParameter(
+				'outputJsonSchema',
+				itemIndex,
+				'{}',
+			) as string;
 			outputSchema = jsonParse<JsonSchema>(manualSchema);
 		}
 

@@ -4,6 +4,7 @@ import type {
 	PendingCompanionConsumeResult,
 	PendingCompanionHitlRecord,
 } from './types';
+import { assertStaticDataStoreQueueSafe } from './queueMode';
 
 const DEFAULT_PENDING_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_PENDING_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
@@ -31,6 +32,11 @@ function cleanupExpired(store: Record<string, PendingCompanionHitlRecord>): void
 
 export function createPendingHitlStore<TRecord extends PendingCompanionHitlRecord>(storeKey: string) {
 	function getStore(ctx: StaticDataContext): Record<string, TRecord> {
+		assertStaticDataStoreQueueSafe(
+			ctx,
+			'Companion HITL pending store',
+			'Select the Postgres pending store backend for HITL companion nodes, or run n8n without queue mode.',
+		);
 		const staticData = ctx.getWorkflowStaticData('node') as Record<string, unknown>;
 		if (!staticData[storeKey] || typeof staticData[storeKey] !== 'object') {
 			staticData[storeKey] = {};

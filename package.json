@@ -19,6 +19,7 @@
 	"scripts": {
 		"build": "n8n-node build",
 		"build:watch": "tsc --watch",
+		"dev": "PATH=\"/opt/homebrew/opt/node@22/bin:$PATH\" n8n-node dev",
 		"deadcode": "knip --reporter compact --include files,exports",
 		"deadcode:ts": "knip --reporter compact --include files,exports",
 		"lint": "n8n-node lint",
@@ -44,6 +45,7 @@
 			"dist/credentials/ClaudeAgentSdkProviderApi.credentials.js",
 			"dist/credentials/ClaudeApi.credentials.js",
 			"dist/credentials/ClaudeAgentSdkOpenRouterApi.credentials.js",
+			"dist/credentials/ClaudeAgentSdkLiteLlmApi.credentials.js",
 			"dist/credentials/AlibabaCodingPlanApi.credentials.js",
 			"dist/credentials/McpHeaderAuthApi.credentials.js",
 			"dist/credentials/SecureEnvVarsApi.credentials.js",

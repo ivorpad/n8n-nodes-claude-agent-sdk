@@ -25,4 +25,10 @@ describe('n8n package registration', () => {
 			]),
 		);
 	});
+
+	it('registers the SDK LiteLLM credential type', () => {
+		expect(packageJson.n8n.credentials).toContain(
+			'dist/credentials/ClaudeAgentSdkLiteLlmApi.credentials.js',
+		);
+	});
 });

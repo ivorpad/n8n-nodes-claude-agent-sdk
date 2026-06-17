@@ -8,6 +8,10 @@ import { discoverSkills, scanSkillsDirectory, parseFrontmatter, parseSkillDocume
 // Temp directory for test fixtures
 let tmpDir: string;
 
+function userSkillsDirectory(): string {
+	return path.join(tmpDir, 'user-skills');
+}
+
 beforeEach(async () => {
 	tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'skill-discover-'));
 });
@@ -216,7 +220,6 @@ describe('scanSkillsDirectory', () => {
 
 describe('discoverSkills', () => {
 	it('deduplicates: project skills override user skills with same name', async () => {
-		// Create "project" skills directory
 		const projectDir = path.join(tmpDir, 'project');
 		const projectSkillsDir = path.join(projectDir, '.claude', 'skills', 'shared');
 		await fs.promises.mkdir(projectSkillsDir, { recursive: true });
@@ -225,50 +228,53 @@ describe('discoverSkills', () => {
 			'---\nname: shared\ndescription: Project version\n---\n',
 		);
 
-		// Create "user" skills directory — we can't easily mock os.homedir(),
-		// so we test the scanSkillsDirectory dedup logic directly
-		const userSkillsDir = path.join(tmpDir, 'user-skills', 'shared');
+		const userSkillsDir = path.join(userSkillsDirectory(), 'shared');
 		await fs.promises.mkdir(userSkillsDir, { recursive: true });
 		await fs.promises.writeFile(
 			path.join(userSkillsDir, 'SKILL.md'),
 			'---\nname: shared\ndescription: User version\n---\n',
 		);
 
-		// Simulate what discoverSkills does: project first, then user, dedup
-		const projectSkills = await scanSkillsDirectory(
-			path.join(projectDir, '.claude', 'skills'),
-			'project',
-		);
-		const userSkills = await scanSkillsDirectory(
-			path.join(tmpDir, 'user-skills'),
-			'user',
-		);
+		const skills = await discoverSkills(projectDir, {
+			userSkillsDirectory: userSkillsDirectory(),
+		});
 
-		const seen = new Set(projectSkills.map((s) => s.name));
-		const deduped = [...projectSkills];
-		for (const skill of userSkills) {
-			if (!seen.has(skill.name)) {
-				seen.add(skill.name);
-				deduped.push(skill);
-			}
-		}
-
-		expect(deduped).toHaveLength(1);
-		expect(deduped[0].description).toBe('Project version');
-		expect(deduped[0].source).toBe('project');
+		expect(skills).toEqual([
+			expect.objectContaining({
+				name: 'shared',
+				description: 'Project version',
+				source: 'project',
+			}),
+		]);
 	});
 
 	it('returns empty array when no working directory and no user skills', async () => {
-		// discoverSkills with a non-existent working directory
-		const skills = await discoverSkills('/nonexistent/project');
-		// May include user-level skills if they exist, but won't error
-		expect(Array.isArray(skills)).toBe(true);
+		const skills = await discoverSkills('/nonexistent/project', {
+			userSkillsDirectory: userSkillsDirectory(),
+		});
+
+		expect(skills).toEqual([]);
 	});
 
 	it('returns only user skills when no working directory provided', async () => {
-		// discoverSkills without workingDirectory only scans ~/.claude/skills/
-		const skills = await discoverSkills();
-		expect(Array.isArray(skills)).toBe(true);
+		const userSkillsDir = path.join(userSkillsDirectory(), 'user-only');
+		await fs.promises.mkdir(userSkillsDir, { recursive: true });
+		await fs.promises.writeFile(
+			path.join(userSkillsDir, 'SKILL.md'),
+			'---\nname: user-only\ndescription: User scope\n---\n',
+		);
+
+		const skills = await discoverSkills(undefined, {
+			userSkillsDirectory: userSkillsDirectory(),
+		});
+
+		expect(skills).toEqual([
+			expect.objectContaining({
+				name: 'user-only',
+				description: 'User scope',
+				source: 'user',
+			}),
+		]);
 	});
 
 	it('excludes user skills when includeUserSkills is false', async () => {
