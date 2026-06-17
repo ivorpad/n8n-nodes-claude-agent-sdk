@@ -22,6 +22,7 @@ vi.mock('../../streaming/ResponseStore', () => ({
 }));
 
 import { ClaudeAgentSdk } from '../../ClaudeAgentSdk.node';
+import { attachStreamResponse } from '../../node/webhookHelpers';
 
 describe('webhook() replay routing', () => {
 	beforeEach(() => {
@@ -109,5 +110,42 @@ describe('webhook() replay routing', () => {
 		// Not routed to replay; falls through to normal handling and is rejected.
 		expect(replayMocks.replayToResponse).not.toHaveBeenCalled();
 		expect(result.webhookResponse).toContain('Missing requestId');
+	});
+
+	// Chokepoint regression: attachStreamResponse is also reached from the POST
+	// question/approval live-attach path (requireExistingState:false), where the
+	// streamKey can fall back to the attacker-controlled query.streamKey. A
+	// non-nonce key must NEVER replay another execution's persisted frames there.
+	it('attachStreamResponse refuses to replay an enumerable (non-nonce) key on the POST live-attach path', async () => {
+		const res = {
+			setHeader: vi.fn(),
+			end: vi.fn(),
+			flushHeaders: vi.fn(),
+			flush: vi.fn(),
+			write: vi.fn(),
+		};
+		const ctx = { getResponseObject: () => res } as any;
+
+		// The store WOULD return a victim row even for a legacy enumerable key…
+		replayMocks.getStreamState.mockResolvedValue({
+			streamKey: 'stream:1:0',
+			status: 'completed',
+			lastSeq: 5,
+			nextSeq: 6,
+		});
+
+		await attachStreamResponse({ ctx, query: {}, streamKey: 'stream:1:0', requireExistingState: false });
+
+		// …but the chokepoint must not replay it (no historical frames leaked).
+		expect(replayMocks.replayToResponse).not.toHaveBeenCalled();
+
+		// A legitimate nonce-format key DOES replay through the same path.
+		await attachStreamResponse({
+			ctx,
+			query: {},
+			streamKey: 'stream:42:0:0123456789abcdef0123456789abcdef',
+			requireExistingState: false,
+		});
+		expect(replayMocks.replayToResponse).toHaveBeenCalledTimes(1);
 	});
 });

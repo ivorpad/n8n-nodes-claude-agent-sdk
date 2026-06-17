@@ -4,6 +4,7 @@ import type { HitlQuestionDefinition } from '../hitl/contractTypes';
 import { clearRequestResponse, storeRequestResponse } from '../streaming/ResponseStore';
 import { createReplayService } from '../streaming/replayService';
 import { createPostgresStreamStoreHandle } from '../streaming/streamStoreFactory';
+import { isNonceFormatStreamKey } from '../streaming/streamKey';
 import { resolveQuestionResponseAction as resolveQuestionResponseActionFromPolicy } from '../hitl/questionPolicy';
 
 const WEBHOOK_DECISION_LEDGER_KEY = '__claudeAgentSdk_hitlWebhookDecisions';
@@ -89,7 +90,17 @@ export async function attachStreamResponse(args: {
 	}
 
 	try {
-		const existingState = await streamStoreHandle.store.getStreamState(streamKey);
+		// SECURITY (chokepoint): replay of persisted frames is a capability gated by
+		// the unguessable nonce in the key. This function is reached from BOTH the
+		// GET ?replay path AND the POST question/approval live-attach path, where the
+		// streamKey can fall back to the attacker-controllable query.streamKey. A
+		// non-nonce key (legacy `stream:<exec>:<idx>`, or a requestId-derived key)
+		// must therefore NEVER select another execution's durable stream: treat it as
+		// "no durable stream" so it can never replay historical frames. Legitimate
+		// resume always carries the nonce-format key from the persisted record.
+		const existingState = isNonceFormatStreamKey(streamKey)
+			? await streamStoreHandle.store.getStreamState(streamKey)
+			: undefined;
 		if (!existingState) {
 			if (requireExistingState) {
 				res.setHeader('Content-Type', 'text/plain; charset=utf-8');
