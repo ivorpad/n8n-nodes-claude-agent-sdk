@@ -22,8 +22,7 @@ For a first local run:
 7. Keep **Permission Mode** conservative until your sandbox, tool, and HITL
    policy are known.
 
-The working directory must exist inside the n8n process or container. If you
-mount `./projects:/workspace`, use `/workspace/my-project`, not the host path.
+The working directory must exist and be readable by the n8n process.
 
 ## Chat Session ID
 

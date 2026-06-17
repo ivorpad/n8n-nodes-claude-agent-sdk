@@ -32,9 +32,8 @@ ${CLAUDE_CONFIG_DIR}/projects
 
 Use one of these approaches:
 
-- Mount the default Claude config directory on durable storage.
-- Set **Additional Options** -> **Claude Config Directory** to a mounted durable
-  path.
+- Keep the default Claude config directory on durable storage.
+- Set **Additional Options** -> **Claude Config Directory** to a durable path.
 - Enable **Isolate Claude Config Directory** for workflow/session scoped config
   state when you do not provide a custom directory.
 
@@ -46,11 +45,10 @@ deterministic session.
 ## Workspace Persistence
 
 The node uses the configured **Working Directory** directly. Workspace durability
-comes from the filesystem or volume mounted at that path.
+comes from the filesystem at that path.
 
-- Put **Working Directory** on a durable mounted volume if files must survive
-  restarts.
-- Keep workspace mounts narrow and explicit.
+- Put **Working Directory** on durable storage if files must survive restarts.
+- Keep workspace access narrow and explicit.
 - Use deployment backups or external object-storage sync outside this node if
   you need workspace snapshots.
 
@@ -128,9 +126,8 @@ itself. Attach a Postgres credential to the `Claude Agent SDK` node.
 For queue mode:
 
 - Install the exact same package version in main, webhook, and worker
-  containers.
-- Mount the same project/workspace paths into workers that execute the node.
-- Mount or configure the same Claude config directory wherever Local CLI runs.
+  processes.
+- Use the same Claude config directory wherever Local CLI runs.
 - Use Postgres Session Memory for same-session concurrency control.
 - Keep binary data durable using n8n's binary-data mode when workflows handle
   large files.
@@ -146,13 +143,11 @@ retention, and payload size limits.
 A safe self-hosted baseline is:
 
 1. Run n8n as a non-root user where practical.
-2. Mount only required workspace directories.
-3. Use a read-only container filesystem with explicit writable mounts when your
-   deployment supports it.
-4. Set `N8N_CLAUDE_POLICY_ALLOWED_PATHS` to mounted workspace roots.
-5. Use `N8N_CLAUDE_POLICY_ALLOWED_PERMISSION_MODES` on shared instances.
-6. Block or gate high-risk tools such as `Bash` unless sandboxing and approvals
+2. Give n8n access only to directories workflows actually need.
+3. Set `N8N_CLAUDE_POLICY_ALLOWED_PATHS` to approved workspace roots.
+4. Use `N8N_CLAUDE_POLICY_ALLOWED_PERMISSION_MODES` on shared instances.
+5. Block or gate high-risk tools such as `Bash` unless sandboxing and approvals
    are intentionally configured.
-7. Use Secure Environment Variables for runtime secrets.
-8. Keep provider and webhook credentials out of workflow exports, logs, and
+6. Use Secure Environment Variables for runtime secrets.
+7. Keep provider and webhook credentials out of workflow exports, logs, and
    screenshots.

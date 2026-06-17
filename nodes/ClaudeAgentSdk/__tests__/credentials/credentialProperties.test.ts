@@ -16,6 +16,16 @@ describe('Credential properties', () => {
 		expect(alibabaProps.some((prop) => prop.name === 'executablePath')).toBe(false);
 	});
 
+	it('makes the Claude Code executable path an optional npm peer override', () => {
+		const executablePath = new ClaudeApi().properties.find((prop) => prop.name === 'executablePath');
+
+		expect(executablePath).toMatchObject({
+			required: false,
+			placeholder: 'Auto-detected from npm install',
+		});
+		expect(executablePath?.description).toContain('@anthropic-ai/claude-code');
+	});
+
 	it('labels the SDK Anthropic credential distinctly from n8n LangChain Anthropic', () => {
 		expect(new ClaudeApi().displayName).toBe('Claude Agent SDK Anthropic API');
 	});

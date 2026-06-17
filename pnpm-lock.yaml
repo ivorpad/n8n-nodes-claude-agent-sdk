@@ -11,6 +11,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.175
         version: 0.3.175(@anthropic-ai/sdk@0.100.1(zod@4.3.6))(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(zod@4.3.6)
+      '@anthropic-ai/claude-code':
+        specifier: ^2.0.0
+        version: 2.1.179
       '@anthropic-ai/sdk':
         specifier: ^0.100.1
         version: 0.100.1(zod@4.3.6)
@@ -144,6 +147,55 @@ packages:
       '@anthropic-ai/sdk': '>=0.93.0'
       '@modelcontextprotocol/sdk': ^1.29.0
       zod: ^4.0.0
+
+  '@anthropic-ai/claude-code-darwin-arm64@2.1.179':
+    resolution: {integrity: sha512-OgeqVYNy1oUOigY94O1TNsi1HTOMxocZ9rphNH3oc6sCjFjRl8gV+3H1TCTdH5fXobAUAsyx36WoBoXO0MhBWA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@anthropic-ai/claude-code-darwin-x64@2.1.179':
+    resolution: {integrity: sha512-okADatergdFzzTbGtWqtiRwlHJqvIqWUOQXIG8PqljADjIGTcGa2I8rZ+9HK0E1F6ZkF8uuhHVGY5EN0GKVWgw==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@anthropic-ai/claude-code-linux-arm64-musl@2.1.179':
+    resolution: {integrity: sha512-8PkP6JylMwgoKytQEbPtP4c1rygECwNJkZvx8HU+0YJX4SSLjcIjgY4yRgfEM9119rzE/Ia6wgXsEP+xBTkvjQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@anthropic-ai/claude-code-linux-arm64@2.1.179':
+    resolution: {integrity: sha512-KpB1gvSGW0m73be0gKbIqbKfyu0zTjf7oXuX6U1QfYKZVxarhA/D9n91c/sR6e2tB75nohx24Kg5roL6JvCYdQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@anthropic-ai/claude-code-linux-x64-musl@2.1.179':
+    resolution: {integrity: sha512-kx2DTE5U9b7AlZ+sJpqxxGMurSt2M7WTNgMqt+T8fO+c6WHrdsSJh+74Zq7z856IXgBrl/+Mcx1NGuaq9kH8uQ==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@anthropic-ai/claude-code-linux-x64@2.1.179':
+    resolution: {integrity: sha512-jyVJpNIPIpqNr24bEGGgkWDY8YSi/h1+wy9Nzfsdwk6I/OTa0/iV7C3KDJTCkALXRRxDCgJXK2rjoWzXDV7Vpw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@anthropic-ai/claude-code-win32-arm64@2.1.179':
+    resolution: {integrity: sha512-0kfiYsV/xlZlmSP+YL3JexIHB30JUoyyiOIXg7VLxDi5bQYS4vyNf8TRStak0UCTYzXEneHRu6hUZ+LrZyEMiw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@anthropic-ai/claude-code-win32-x64@2.1.179':
+    resolution: {integrity: sha512-8Wt9LMArUuvzq//1CGxqg07tcvIhuANxU5Mmk4DugxDmGzd1W2vQGjYazXSw+fwwn7tbhimRLWwXt76dG2/4yw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@anthropic-ai/claude-code@2.1.179':
+    resolution: {integrity: sha512-gH8HCWDPK+8m/3miGjD69VfPv/ShrFWp7nMaWbpiLzp45qrQV0wbf5Hgye2ToYvFFbzCa+S0+OZbpQ4UDetQnw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   '@anthropic-ai/sdk@0.100.1':
     resolution: {integrity: sha512-RANcEe7LpiLczkKGOwoXOTuFdPhuubS0i4xaAKOMpcqc55YO0mukgxppV7eygx3DXNjxWT6RYOLPyOy0aIAmwg==}
@@ -2868,6 +2920,41 @@ snapshots:
       '@anthropic-ai/claude-agent-sdk-linux-x64-musl': 0.3.175
       '@anthropic-ai/claude-agent-sdk-win32-arm64': 0.3.175
       '@anthropic-ai/claude-agent-sdk-win32-x64': 0.3.175
+
+  '@anthropic-ai/claude-code-darwin-arm64@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code-darwin-x64@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code-linux-arm64-musl@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code-linux-arm64@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code-linux-x64-musl@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code-linux-x64@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code-win32-arm64@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code-win32-x64@2.1.179':
+    optional: true
+
+  '@anthropic-ai/claude-code@2.1.179':
+    optionalDependencies:
+      '@anthropic-ai/claude-code-darwin-arm64': 2.1.179
+      '@anthropic-ai/claude-code-darwin-x64': 2.1.179
+      '@anthropic-ai/claude-code-linux-arm64': 2.1.179
+      '@anthropic-ai/claude-code-linux-arm64-musl': 2.1.179
+      '@anthropic-ai/claude-code-linux-x64': 2.1.179
+      '@anthropic-ai/claude-code-linux-x64-musl': 2.1.179
+      '@anthropic-ai/claude-code-win32-arm64': 2.1.179
+      '@anthropic-ai/claude-code-win32-x64': 2.1.179
 
   '@anthropic-ai/sdk@0.100.1(zod@4.3.6)':
     dependencies:

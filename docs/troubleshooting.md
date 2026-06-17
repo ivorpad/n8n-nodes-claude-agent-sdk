@@ -9,7 +9,7 @@ Check:
 1. The package was installed under the n8n community-node directory used by the
    running process.
 2. n8n was restarted after install.
-3. In queue mode, every main/webhook/worker container has the same package
+3. In queue mode, every main/webhook/worker process has the same package
    version installed.
 4. The build completed before `pnpm pack` if using a local tarball.
 
@@ -27,23 +27,21 @@ spawn /path/to/claude ENOENT
 
 Fix:
 
-1. Make the `claude` executable available in the n8n runtime that executes the
-   workflow.
-2. Set the executable path in the `Claude Agent SDK Anthropic API` credential if
-   using CLI subscription auth.
-3. Verify from inside the container or process:
+1. Reinstall with npm so `@anthropic-ai/claude-code` is installed as the peer
+   dependency.
+2. If using a custom binary, set the executable path in the
+   `Claude Agent SDK Anthropic API` credential.
+3. Verify from the n8n runtime user:
 
 ```bash
-which claude
-claude --version
+cd ~/.n8n/nodes
+npm ls @anthropic-ai/claude-code
+npx claude --version
 ```
 
 ### Working Directory Does Not Exist
 
-Use the path inside the n8n runtime, not the host path.
-
-If Docker mounts `./projects:/workspace`, set **Working Directory** to
-`/workspace/my-project`.
+Use a path the n8n runtime user can access.
 
 ### No Suitable Shell Found
 
@@ -68,8 +66,8 @@ permission escalation.
 Check:
 
 - API key exists in the `Claude Agent SDK Anthropic API` credential, or
-- CLI subscription auth points to a logged-in `claude` executable and readable
-  Claude config directory.
+- CLI subscription auth has a logged-in Claude Code session for the n8n runtime
+  user.
 
 ### OpenRouter Auth Fails
 
@@ -100,12 +98,7 @@ Check:
 
 1. Ollama is running.
 2. The model is pulled and visible in `/api/tags`.
-3. Docker networking uses a reachable host:
-   - host machine: `http://<host-reachable-name>:11434`,
-   - Compose service: `http://<compose-service-name>:11434`.
-
-The loopback host inside a container is the container itself, not the host
-machine.
+3. **Ollama Base URL** points to the host/port reachable from n8n.
 
 ### Custom Endpoint Returns 404
 
@@ -127,8 +120,8 @@ Check:
 3. A Session Memory node is connected.
 4. For Local CLI, the Claude transcript still exists under
    `CLAUDE_CONFIG_DIR/projects`.
-5. All queue-mode workers share the same package version, mounted workspace,
-   and Claude config path.
+5. All queue-mode workers share the same package version and Claude config
+   path.
 
 ### Concurrent Runs Fight Over One Session
 
@@ -138,15 +131,15 @@ Redis memory do not implement the execution lifecycle advisory lock.
 ### Missing Transcript For Saved Session
 
 If a memory entry exists but the Local CLI transcript file is gone, the node
-clears the memory entry and starts fresh. Persist or mount the Claude config
-directory if cross-run transcript continuity matters.
+clears the memory entry and starts fresh. Keep the Claude config directory
+durable if cross-run transcript continuity matters.
 
 ### Resume Collision Or Corrupted Replay Context
 
 For non-HITL resumes, the node retries fresh once after common resume bootstrap
 failures such as a session already in use, process `exit code 1`, or corrupted
 thinking replay context. If the same workflow keeps falling back to fresh runs,
-check worker concurrency, shared Claude config mounts, and whether another
+check worker concurrency, shared Claude config paths, and whether another
 execution is using the same `chatSessionId`.
 
 ## HITL Problems
@@ -238,4 +231,5 @@ future use into credentials or `Secure Environment Variables`.
 
 Path sandboxing applies to file tools such as Read, Write, Edit, Glob, and Grep.
 It does not inspect shell effects from Bash. Block or gate Bash, use SDK/OS
-sandboxing, and constrain container mounts for true filesystem isolation.
+sandboxing, and restrict the runtime user's filesystem access for true
+filesystem isolation.

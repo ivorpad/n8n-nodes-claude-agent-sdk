@@ -20,6 +20,7 @@ import { parseCommaSeparatedNames, resolveIsolatedClaudeConfigDir } from './quer
 import { isRecord, readTrimmedString } from './querySetupContext';
 import type { ApiProvider, EnvironmentArgs, PromptSetup, PromptSetupArgs, StderrCapture } from './querySetupTypes';
 import type { SettingSource, UpstreamQueryOptions } from '../../../sdk/types';
+import { resolveNpmClaudeCodeExecutable } from '../../../sdk/claudeCodeExecutable';
 
 export { buildQuerySetupContext } from './querySetupContext';
 export { buildThinkingSetup } from './queryThinkingSetup';
@@ -204,8 +205,11 @@ export async function resolveCliExecutablePath(
 ): Promise<string | undefined> {
 	try {
 		const cliCredentials = await execFunctions.getCredentials('claudeApi');
-		return isRecord(cliCredentials) ? readTrimmedString(cliCredentials.executablePath) : undefined;
+		const configuredPath = isRecord(cliCredentials)
+			? readTrimmedString(cliCredentials.executablePath)
+			: undefined;
+		return configuredPath ?? resolveNpmClaudeCodeExecutable();
 	} catch {
-		return undefined;
+		return resolveNpmClaudeCodeExecutable();
 	}
 }

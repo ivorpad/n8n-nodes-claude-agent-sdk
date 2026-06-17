@@ -20,12 +20,13 @@ Choose **Authentication** = **Anthropic API** and create a
 Credential options:
 
 - **API Key**: stores an Anthropic API key and sends it as `ANTHROPIC_API_KEY`.
-- **Claude Code CLI (Subscription)**: stores the absolute path to the `claude`
-  executable and relies on an existing `claude login` session in the n8n
-  runtime.
+- **Claude Code CLI (Subscription)**: uses the npm-installed
+  `@anthropic-ai/claude-code` peer dependency and relies on an existing
+  Claude Code login session for the n8n runtime user. Run `npx claude login`
+  from `~/.n8n/nodes` after installation.
 
-Use the CLI-subscription option only when the n8n process can read the mounted
-Claude config directory and run the configured executable.
+The optional executable path field is only for custom Claude Code binaries. In
+the normal npm install path, leave it empty.
 
 ## OpenRouter
 
@@ -81,13 +82,6 @@ Configure:
   Ollama host/port is not reachable from the n8n runtime.
 - The top-level Ollama **Model** selector, loaded from the Ollama `/api/tags`
   endpoint.
-
-Docker networking guidance:
-
-```text
-Ollama on host machine: http://<host-reachable-name>:11434
-Ollama in Compose service: http://<compose-service-name>:11434
-```
 
 Use an Ollama version and model endpoint that provide Anthropic-compatible
 behavior for the Claude Code/Agent SDK path. Local models may not support every

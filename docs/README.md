@@ -5,7 +5,7 @@ This documentation is for users installing and operating the
 
 Start here:
 
-- [Installation](installation.md) - install from npm, build a local tarball, install in Docker, and verify the nodes appear.
+- [Installation](installation.md) - install from npm, build a local tarball, and verify the nodes appear.
 - [Providers And Credentials](providers-and-credentials.md) - configure Anthropic, Claude Code CLI subscription auth, OpenRouter, Alibaba Coding Plan, Ollama, custom endpoints, secure environment variables, and proxy settings.
 - [Execute Task](execute-task.md) - configure the main operation, generated Python SDK scripts, tools, MCP servers, streaming, structured output, and session IDs.
 - [HITL](hitl.md) - configure browser/webhook approvals, AskUserQuestion, channel nodes, wait/resume ownership, webhook authentication, and provider callback authentication.

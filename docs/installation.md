@@ -8,15 +8,14 @@ n8n. It is not designed for n8n Cloud or for n8n-verified-node constraints.
 - Self-hosted n8n with community nodes enabled.
 - A runtime that can start child processes and access the configured working
   directories.
-- The `claude` executable available in the n8n runtime when using the
-  **Local CLI** backend.
 - Provider credentials or a logged-in Claude Code CLI session.
 - Optional Redis/Postgres services if you use those memory or durability
   features.
 
-This package depends on `@anthropic-ai/claude-agent-sdk`, but it does not bundle
-the Claude Code CLI. For Docker, install the CLI and required shell/tooling in
-the n8n image, not only in an external task-runner container.
+This package declares `@anthropic-ai/claude-code` as an npm peer dependency.
+With normal npm installs, Claude Code is installed alongside the community node
+and the node auto-detects the peer package's `claude` binary. The credential
+path field is only an override for unusual custom binaries.
 
 ## Install From npm
 
@@ -35,6 +34,15 @@ cd ~/.n8n/nodes
 npm install n8n-nodes-claude-agent-sdk
 ```
 
+That single install is expected to install the peer `@anthropic-ai/claude-code`
+package as well. If you plan to authenticate with a Claude Code subscription,
+log in from the same runtime user and install directory:
+
+```bash
+cd ~/.n8n/nodes
+npx claude login
+```
+
 ## Build A Local Package
 
 Build a local tarball from this repository when you need to install or test a
@@ -50,94 +58,38 @@ pnpm pack
 The tarball name includes the package version, for example
 `n8n-nodes-claude-agent-sdk-0.2.22.tgz`.
 
-## Install A Tarball Into Docker n8n
+## Install A Local Tarball
 
-Copy the tarball into the running n8n container:
-
-```bash
-docker cp n8n-nodes-claude-agent-sdk-0.2.22.tgz n8n:/tmp/
-```
-
-Install it in n8n's community-node directory:
+Install the tarball in n8n's community-node directory:
 
 ```bash
-docker exec -it n8n sh
 mkdir -p ~/.n8n/nodes
 cd ~/.n8n/nodes
-npm install /tmp/n8n-nodes-claude-agent-sdk-0.2.22.tgz
-exit
-docker restart n8n
+npm install /absolute/path/to/n8n-nodes-claude-agent-sdk-0.2.22.tgz
 ```
 
-For Docker Compose and queue mode, install the same package version in every
-container that loads or executes workflows: main, webhook, and worker
-containers.
+For queue mode, install the same package version in every runtime that loads or
+executes workflows: main, webhook, and worker processes.
 
-## Bake Into A Custom Docker Image
+You can also install directly from a local checkout during development after
+building `dist`:
 
-For production, prefer a custom n8n image over manual installation into a
-running container.
-
-```dockerfile
-FROM n8nio/n8n:<your-n8n-version>
-
-USER root
-RUN mkdir -p /home/node/.n8n/nodes \
-	&& cd /home/node/.n8n/nodes \
-	&& npm install n8n-nodes-claude-agent-sdk \
-	&& chown -R node:node /home/node/.n8n
-USER node
+```bash
+mkdir -p ~/.n8n/nodes
+cd ~/.n8n/nodes
+npm install /absolute/path/to/n8n-nodes-claude-agent-sdk
 ```
 
-To install from a locally built tarball, copy it into the image:
+## Runtime Notes
 
-```dockerfile
-FROM n8nio/n8n:<your-n8n-version>
+For Local CLI execution, ensure `SHELL` points to a POSIX shell available to the
+n8n process:
 
-USER root
-COPY n8n-nodes-claude-agent-sdk-0.2.22.tgz /tmp/
-RUN mkdir -p /home/node/.n8n/nodes \
-	&& cd /home/node/.n8n/nodes \
-	&& npm install /tmp/n8n-nodes-claude-agent-sdk-0.2.22.tgz \
-	&& rm /tmp/n8n-nodes-claude-agent-sdk-0.2.22.tgz \
-	&& chown -R node:node /home/node/.n8n
-USER node
+```bash
+export SHELL=/bin/bash
 ```
 
-Your image must also provide the `claude` executable, shell, working-directory
-mounts, Claude config mount, and optional Redis/Postgres services needed by your
-workflow.
-
-## Docker Runtime Notes
-
-For Local CLI execution, the n8n container commonly needs:
-
-```dockerfile
-USER root
-RUN apk add --no-cache bash git python3 make g++ \
-	&& npm install -g @anthropic-ai/claude-code
-ENV SHELL=/bin/bash
-USER node
-```
-
-Mount only the directories the workflow needs:
-
-```yaml
-services:
-  n8n:
-    image: n8n-custom:latest
-    volumes:
-      - n8n-data:/home/node/.n8n
-      - ./projects:/workspace
-      - ./claude-config:/home/node/.claude
-    environment:
-      SHELL: /bin/bash
-      HOME: /home/node
-      CLAUDE_CONFIG_DIR: /home/node/.claude
-```
-
-Set **Working Directory** to the container path, for example
-`/workspace/my-project`, not the host path.
+Set **Working Directory** to a path the n8n runtime can access.
 
 ## Verify The Install
 

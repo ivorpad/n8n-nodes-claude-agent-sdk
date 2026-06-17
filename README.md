@@ -57,19 +57,15 @@ pnpm pack
 ```
 
 Then install the generated `.tgz` in n8n's community-node directory. See
-[Installation](docs/installation.md) for Docker, custom image, queue-mode, and
-verification details.
+[Installation](docs/installation.md) for npm install and verification details.
 
 ## Runtime Requirements
 
 For Local CLI execution:
 
-- make the `claude` executable available in the n8n runtime that executes
-  workflows,
+- install this package with npm so npm also installs the
+  `@anthropic-ai/claude-code` peer dependency,
 - configure provider credentials or a logged-in CLI session,
-- mount the working directory inside the n8n container/process,
-- mount or configure a durable Claude config directory if sessions must resume
-  across restarts,
 - use Postgres Session Memory when queue-mode workers can touch the same
   `chatSessionId`.
 
