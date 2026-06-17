@@ -52,10 +52,13 @@ function signWhatsAppBody(rawBody: string, appSecret: string): Record<string, st
 }
 
 describe('ClaudeAgentWhatsApp webhook', () => {
-	it('builds approval envelope from signed query params when pending store entry is missing', async () => {
+	it('builds record-only approval envelope (forged query sid/afps/fp ignored) when pending store entry is missing', async () => {
+		// The unsigned companion URL query (sid/afps/fp) is attacker-controllable and
+		// MUST NEVER populate resume fields. With no persisted pending record, a POST
+		// approve still consumes the decision, but every resume field stays undefined.
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: {
 				requestId: 'req_webhook_approval_fallback_1',
 				approved: 'true',
@@ -70,15 +73,17 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
 		expect(payload.type).toBe('approval_response');
 		expect(payload.requestId).toBe('req_webhook_approval_fallback_1');
-		expect(payload.resumeSessionId).toBe('session_from_query');
-		expect(payload.approvedFingerprints).toBe('afps_from_query');
-		expect(payload.fingerprint).toBe('tool:Write');
+		expect(payload.approved).toBe(true);
+		// Record-only trust boundary: forged query metadata is never trusted.
+		expect(payload.resumeSessionId).toBeUndefined();
+		expect(payload.approvedFingerprints).toBeUndefined();
+		expect(payload.fingerprint).toBeUndefined();
 	});
 
 	it('returns strict approval envelope for approve/deny links', async () => {
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_webhook_approval_1', approved: 'true' },
 			staticData,
 		});
@@ -210,7 +215,7 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 	it('returns already answered on duplicate approval reply', async () => {
 		const staticData: Record<string, unknown> = {};
 		const initial = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_webhook_approval_duplicate_1', approved: 'true' },
 			staticData,
 		});
@@ -228,7 +233,7 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		expect(firstResult.workflowData?.[0]?.[0]?.json?.type).toBe('approval_response');
 
 		const replay = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_webhook_approval_duplicate_1', approved: 'true' },
 			staticData,
 		});
@@ -240,7 +245,7 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 	it('returns conflict when replay uses a different approval decision', async () => {
 		const staticData: Record<string, unknown> = {};
 		const approved = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_webhook_approval_conflict_1', approved: 'true' },
 			staticData,
 		});
@@ -258,7 +263,7 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		expect(firstResult.workflowData?.[0]?.[0]?.json?.type).toBe('approval_response');
 
 		const deniedReplay = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_webhook_approval_conflict_1', approved: 'false' },
 			staticData,
 		});
@@ -427,7 +432,10 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		expect(pendingAfter?.status).toBe('pending');
 	});
 
-	it('builds question envelope from signed query params when pending store entry is missing', async () => {
+	it('builds record-only question envelope (forged query sid/afps ignored) when pending store entry is missing', async () => {
+		// Question metadata (q) is needed to render/parse the form, but the unsigned
+		// sid/afps query params are attacker-controllable and MUST NOT become resume
+		// fields. With no persisted record, those resume fields stay undefined.
 		const staticData: Record<string, unknown> = {};
 		const questions = [
 			{
@@ -455,9 +463,10 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
 		expect(payload.type).toBe('question_response');
 		expect(payload.requestId).toBe('req_webhook_question_fallback_1');
-		expect(payload.resumeSessionId).toBe('session_from_query_q');
-		expect(payload.approvedFingerprints).toBe('afps_from_query_q');
 		expect(payload.answers).toEqual({ Format: 'Summary' });
+		// Record-only trust boundary: forged query metadata is never trusted.
+		expect(payload.resumeSessionId).toBeUndefined();
+		expect(payload.approvedFingerprints).toBeUndefined();
 	});
 
 	it('renders question form from signed query metadata when pending entry is missing', async () => {
@@ -577,10 +586,10 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		expect(stillPending?.status).toBe('pending');
 	});
 
-	it('allows the ?approved query decision in waitForReply mode (n8n validated the signature)', async () => {
+	it('allows the ?approved query decision in waitForReply mode via POST (n8n validated the signature)', async () => {
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_wa_waitforreply_1', approved: 'true' },
 			nodeParameters: { replyHandlingMode: 'waitForReply' },
 			staticData,
@@ -599,6 +608,75 @@ describe('ClaudeAgentWhatsApp webhook', () => {
 		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
 		expect(payload.type).toBe('approval_response');
 		expect(payload.approved).toBe(true);
+	});
+
+
+	it('GET ?approved renders a confirmation page and does NOT consume', async () => {
+		// CSRF / safe-method: a GET carrying ?approved must render a confirmation PAGE
+		// (a POST form with no auto-submit) and must NOT consume the pending decision.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_wa_get_confirm_1', approved: 'true' },
+			staticData,
+		});
+
+		await savePending(context, {
+			requestId: 'req_wa_get_confirm_1',
+			kind: 'approval',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_wa_get_confirm_1',
+		}, { backend: 'staticData' });
+
+		const result = await webhook.call(context);
+
+		// Nothing consumed: confirmation-only render, no resume envelope emitted.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+		expect(response.send).toHaveBeenCalledTimes(1);
+
+		const html = response.send.mock.calls[0][0] as string;
+		// A POST form with a hidden approved input and a submit button...
+		expect(html).toMatch(/<form[^>]*method=["']POST["']/i);
+		expect(html).toMatch(/<input[^>]*name=["']approved["']/i);
+		expect(html).toMatch(/<button[^>]*type=["']submit["']/i);
+		// ...and NO auto-submit (no script submit, onload, or meta refresh).
+		expect(html).not.toContain('.submit(');
+		expect(html).not.toMatch(/onload/i);
+		expect(html).not.toMatch(/http-equiv=["']?refresh/i);
+
+		// The decision must still be pending — the GET did not consume it.
+		const stillPending = await getPending(context, 'req_wa_get_confirm_1', { backend: 'staticData' });
+		expect(stillPending?.status).toBe('pending');
+	});
+
+	it('POST forged query (sid/afps/fp) with no pending record yields empty resume fields', async () => {
+		// Record-only trust boundary: an attacker-controllable unsigned query may carry
+		// sid/afps/fp, but with NO persisted pending record the consumed envelope must
+		// expose none of them — all resume fields are undefined.
+		const staticData: Record<string, unknown> = {};
+		const { context } = createWebhookContext({
+			method: 'POST',
+			query: {
+				requestId: 'req_wa_forged_record_only_1',
+				approved: 'true',
+				sid: 'forged_session',
+				afps: 'forged_afps',
+				fp: 'tool:Bash',
+			},
+			staticData,
+		});
+
+		const result = await webhook.call(context);
+		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
+		expect(payload.type).toBe('approval_response');
+		expect(payload.requestId).toBe('req_wa_forged_record_only_1');
+		expect(payload.approved).toBe(true);
+		expect(payload.resumeSessionId).toBeUndefined();
+		expect(payload.approvedFingerprints).toBeUndefined();
+		expect(payload.fingerprint).toBeUndefined();
 	});
 
 });

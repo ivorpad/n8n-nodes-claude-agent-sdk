@@ -3,6 +3,7 @@ import type { IWebhookFunctions } from 'n8n-workflow';
 
 import { webhook } from '../node/webhook';
 import { getPending, savePending } from '../store/PendingWoztellHitlStore';
+import { buildApprovalConfirmationHtml } from '../../ClaudeAgentSdk/webhook/questionForm';
 
 function createWebhookContext(args: {
 	method: 'GET' | 'POST';
@@ -38,11 +39,12 @@ function createWebhookContext(args: {
 }
 
 describe('ClaudeAgentWoztell webhook', () => {
-	it('returns strict approval envelope for approve/deny links in waitForReply mode', async () => {
+	it('returns strict approval envelope on POST for approve/deny links in waitForReply mode', async () => {
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_woztell_approval_1', approved: 'true' },
+			body: { approved: 'true' },
 			nodeParameters: { replyHandlingMode: 'waitForReply' },
 			staticData,
 		});
@@ -66,19 +68,69 @@ describe('ClaudeAgentWoztell webhook', () => {
 		expect(payload.requestId).toBe('req_woztell_approval_1');
 		expect(payload.channel).toBe('woztell');
 		expect(payload.approved).toBe(true);
+		// Trust boundary: resume fields come FROM THE PERSISTED RECORD, never the query.
+		expect(payload.resumeSessionId).toBe('session_woztell_approval_1');
+		expect(payload.approvedFingerprints).toBe('abc');
+		expect(payload.fingerprint).toBe('tool:Write');
 	});
 
-	it('builds approval envelope from signed query params when pending store entry is missing (waitForReply)', async () => {
+	it('uses record resume fields and IGNORES forged query params when a pending record exists (waitForReply)', async () => {
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
+			query: {
+				requestId: 'req_woztell_record_1',
+				approved: 'true',
+				// Attacker-controllable, unsigned query params — must NOT influence resume.
+				sid: 'session_from_query',
+				afps: 'afps_from_query',
+				fp: 'tool:Evil',
+			},
+			body: { approved: 'true' },
+			nodeParameters: { replyHandlingMode: 'waitForReply' },
+			staticData,
+		});
+
+		await savePending(context, {
+			requestId: 'req_woztell_record_1',
+			kind: 'approval',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_from_record',
+			approvedFingerprints: 'afps_from_record',
+			fingerprint: 'tool:Write',
+			channel: 'woztell',
+		}, { backend: 'staticData' });
+
+		const result = await webhook.call(context);
+		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
+
+		expect(payload.type).toBe('approval_response');
+		expect(payload.channel).toBe('woztell');
+		// Resume fields are sourced from the record, NOT the unsigned query.
+		expect(payload.resumeSessionId).toBe('session_from_record');
+		expect(payload.approvedFingerprints).toBe('afps_from_record');
+		expect(payload.fingerprint).toBe('tool:Write');
+		// The forged query values never appear.
+		expect(payload.resumeSessionId).not.toBe('session_from_query');
+		expect(payload.approvedFingerprints).not.toBe('afps_from_query');
+		expect(payload.fingerprint).not.toBe('tool:Evil');
+	});
+
+	it('record-only resume: POST with forged query params yields undefined resume fields when pending store entry is missing (waitForReply)', async () => {
+		const staticData: Record<string, unknown> = {};
+		const { context } = createWebhookContext({
+			method: 'POST',
 			query: {
 				requestId: 'req_woztell_fallback_1',
 				approved: 'true',
+				// Unsigned, attacker-controllable — must be ignored entirely.
 				sid: 'session_from_query',
 				afps: 'afps_from_query',
 				fp: 'tool:Write',
 			},
+			body: { approved: 'true' },
 			nodeParameters: { replyHandlingMode: 'waitForReply' },
 			staticData,
 		});
@@ -86,8 +138,12 @@ describe('ClaudeAgentWoztell webhook', () => {
 		const result = await webhook.call(context);
 		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
 		expect(payload.type).toBe('approval_response');
-		expect(payload.resumeSessionId).toBe('session_from_query');
 		expect(payload.channel).toBe('woztell');
+		expect(payload.approved).toBe(true);
+		// No persisted record => resume fields are record-only => all undefined.
+		expect(payload.resumeSessionId).toBeUndefined();
+		expect(payload.approvedFingerprints).toBeUndefined();
+		expect(payload.fingerprint).toBeUndefined();
 	});
 
 	it('rejects an unsigned ?approved query decision in dispatchAndExit mode (durable URL has no n8n signature)', async () => {
@@ -118,6 +174,52 @@ describe('ClaudeAgentWoztell webhook', () => {
 
 		// Decision must NOT have been consumed.
 		const stillPending = await getPending(context, 'req_woztell_forged_1', { backend: 'staticData' });
+		expect(stillPending?.status).toBe('pending');
+	});
+
+	it('GET ?approved renders a confirmation page and does NOT consume', async () => {
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_woztell_confirm_1', approved: 'true' },
+			nodeParameters: { replyHandlingMode: 'waitForReply' },
+			staticData,
+		});
+
+		await savePending(context, {
+			requestId: 'req_woztell_confirm_1',
+			kind: 'approval',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_woztell_confirm_1',
+			toolName: 'Write',
+			fingerprint: 'tool:Write',
+			channel: 'woztell',
+		}, { backend: 'staticData' });
+
+		const result = await webhook.call(context);
+
+		// A safe-method GET renders a page and consumes NOTHING.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+
+		// The page is the audited approval confirmation HTML.
+		const sentHtml = response.send.mock.calls[0]?.[0] as string;
+		expect(sentHtml).toBe(
+			buildApprovalConfirmationHtml({ approved: true, toolName: 'Write' }),
+		);
+		// It is a POST form with a hidden approved input and a submit button...
+		expect(sentHtml).toMatch(/<form[^>]*method="POST"/i);
+		expect(sentHtml).toMatch(/<input[^>]*type="hidden"[^>]*name="approved"/i);
+		expect(sentHtml).toMatch(/<button[^>]*type="submit"/i);
+		// ...with NO auto-submit (no script submit, no onload, no meta-refresh).
+		expect(sentHtml).not.toMatch(/\.submit\(/);
+		expect(sentHtml).not.toMatch(/onload/i);
+		expect(sentHtml).not.toMatch(/http-equiv\s*=\s*["']?refresh/i);
+
+		// The decision must NOT have been consumed by the GET.
+		const stillPending = await getPending(context, 'req_woztell_confirm_1', { backend: 'staticData' });
 		expect(stillPending?.status).toBe('pending');
 	});
 });

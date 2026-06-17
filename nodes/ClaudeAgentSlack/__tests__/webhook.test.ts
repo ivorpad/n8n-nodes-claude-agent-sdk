@@ -5,6 +5,7 @@ import type { IWebhookFunctions } from 'n8n-workflow';
 
 import { webhook } from '../node/webhook';
 import { savePending } from '../store/PendingSlackHitlStore';
+import { buildApprovalConfirmationHtml } from '../../ClaudeAgentSdk/webhook/questionForm';
 
 function createWebhookContext(args: {
 	method: 'GET' | 'POST';
@@ -51,10 +52,14 @@ function signSlackBody(rawBody: string, signingSecret: string, timestamp: string
 }
 
 describe('ClaudeAgentSlack webhook', () => {
-	it('builds approval envelope from signed query params when pending store entry is missing', async () => {
+	it('builds record-only approval envelope (ignores unsigned query sid/afps/fp) when pending store entry is missing', async () => {
+		// The resume URL is delivered out-of-band and n8n's resume token signs only
+		// the execution + node path, NOT the query string, so sid/afps/fp are
+		// attacker-controllable. A POST consumes the decision, but these forged
+		// query values must NEVER become resume fields — they must be undefined.
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: {
 				requestId: 'req_webhook_approval_fallback_1',
 				approved: 'true',
@@ -69,16 +74,89 @@ describe('ClaudeAgentSlack webhook', () => {
 		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
 		expect(payload.type).toBe('approval_response');
 		expect(payload.requestId).toBe('req_webhook_approval_fallback_1');
-		expect(payload.resumeSessionId).toBe('session_from_query');
-		expect(payload.approvedFingerprints).toBe('afps_from_query');
-		expect(payload.fingerprint).toBe('tool:Write');
+		expect(payload.approved).toBe(true);
 		expect(payload.channel).toBe('slack');
+		// Record-only trust boundary: no persisted record => all resume fields undefined.
+		expect(payload.resumeSessionId).toBeUndefined();
+		expect(payload.approvedFingerprints).toBeUndefined();
+		expect(payload.fingerprint).toBeUndefined();
 	});
 
-	it('returns strict approval envelope for approve/deny links', async () => {
+	it('GET ?approved renders a confirmation page and does NOT consume', async () => {
+		// Link scanners, unfurlers and browser prefetch issue automatic GETs against
+		// approve/deny URLs. A GET must render a confirmation page and consume
+		// nothing; only an explicit POST (button click) consumes the decision.
+		const staticData: Record<string, unknown> = {};
+		const { context, response } = createWebhookContext({
+			method: 'GET',
+			query: { requestId: 'req_slack_get_confirm_1', approved: 'true' },
+			staticData,
+		});
+
+		savePending(context, {
+			requestId: 'req_slack_get_confirm_1',
+			kind: 'approval',
+			status: 'pending',
+			createdAt: Date.now(),
+			timeoutMs: 60_000,
+			sessionId: 'session_slack_get_confirm_1',
+			approvedFingerprints: 'abc',
+			fingerprint: 'tool:Write',
+		});
+
+		const result = await webhook.call(context);
+
+		// Nothing consumed: no resume envelope emitted, page rendered out-of-band.
+		expect(result.noWebhookResponse).toBe(true);
+		expect(result.workflowData).toBeUndefined();
+
+		expect(response.send).toHaveBeenCalledTimes(1);
+		const html = response.send.mock.calls[0][0] as string;
+		// Exact audited confirmation page (CSRF-safe GET->POST handoff).
+		expect(html).toBe(buildApprovalConfirmationHtml({ approved: true }));
+		// It is a POST form with a hidden approved input and a submit button.
+		expect(html).toMatch(/<form[^>]*method="POST"/i);
+		expect(html).toMatch(/<input[^>]*type="hidden"[^>]*name="approved"/i);
+		expect(html).toMatch(/<button[^>]*type="submit"/i);
+		// No auto-submit of any kind — that would re-introduce the vulnerability.
+		expect(html).not.toMatch(/\.submit\(/);
+		expect(html).not.toMatch(/onload/i);
+		expect(html).not.toMatch(/http-equiv\s*=\s*["']?refresh/i);
+	});
+
+	it('POST forged query (sid/afps/fp) with no pending record yields empty resume fields', async () => {
+		// A forged URL carrying resume metadata in the query must not grant authority:
+		// with no persisted record the consumed envelope is record-only (all undefined).
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
+			query: {
+				requestId: 'req_slack_forged_query_1',
+				approved: 'true',
+				sid: 'forged_session',
+				afps: 'forged_afps',
+				fp: 'tool:Bash',
+			},
+			staticData,
+		});
+
+		const result = await webhook.call(context);
+		const payload = result.workflowData?.[0]?.[0]?.json as Record<string, unknown>;
+
+		expect(payload.type).toBe('approval_response');
+		expect(payload.requestId).toBe('req_slack_forged_query_1');
+		expect(payload.approved).toBe(true);
+		expect(payload.channel).toBe('slack');
+		// Record-only: forged query values never become resume fields.
+		expect(payload.resumeSessionId).toBeUndefined();
+		expect(payload.approvedFingerprints).toBeUndefined();
+		expect(payload.fingerprint).toBeUndefined();
+	});
+
+	it('returns strict approval envelope on POST with resume fields sourced from the persisted record', async () => {
+		const staticData: Record<string, unknown> = {};
+		const { context } = createWebhookContext({
+			method: 'POST',
 			query: { requestId: 'req_webhook_approval_1', approved: 'true' },
 			staticData,
 		});
@@ -104,6 +182,10 @@ describe('ClaudeAgentSlack webhook', () => {
 		expect(payload.approved).toBe(true);
 		expect(typeof payload.decisionId).toBe('string');
 		expect(typeof payload.decidedAt).toBe('string');
+		// Resume fields come from the persisted record, not the query string.
+		expect(payload.resumeSessionId).toBe('session_webhook_approval_1');
+		expect(payload.approvedFingerprints).toBe('abc');
+		expect(payload.fingerprint).toBe('tool:Write');
 	});
 
 	it('renders HTML question form on GET before submission', async () => {
@@ -205,11 +287,12 @@ describe('ClaudeAgentSlack webhook', () => {
 		expect(result.webhookResponse).toMatch(/forbidden/i);
 	});
 
-	it('allows the in-waitForReply n8n-signed query path (no provider shape)', async () => {
-		// waitForReply means n8n validated the resume signature before invoking the webhook.
+	it('allows the in-waitForReply n8n-signed query path on POST (no provider shape)', async () => {
+		// waitForReply means n8n validated the resume signature before invoking the
+		// webhook. The decision is still only consumed on an explicit POST.
 		const staticData: Record<string, unknown> = {};
 		const { context } = createWebhookContext({
-			method: 'GET',
+			method: 'POST',
 			query: { requestId: 'req_slack_waitforreply_1', approved: 'true' },
 			nodeParameters: { replyHandlingMode: 'waitForReply' },
 			staticData,
