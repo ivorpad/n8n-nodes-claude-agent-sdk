@@ -75,7 +75,7 @@ export const NOOP_SECRETS_REDACTOR: SecretsRedactor = {
 /**
  * Secret values that exist outside ExecuteTaskOptions but must still be
  * redacted (resolved later than the option object, e.g. MCP header-auth
- * credential bearer tokens — V4b).
+ * credential bearer tokens).
  */
 interface ExtraSecretSources {
 	/** Resolved mcpHeaderAuthApi header values (bearer tokens etc.). */
@@ -109,9 +109,9 @@ function readCredentialString(value: unknown, key: string): string | undefined {
 
 /**
  * Resolve the MCP header-auth credential value(s) that will be injected into
- * MCP HTTP/SSE server requests (V4b). The redactor is built before MCP server
- * config is assembled, so the underlying credential is read here at build time
- * and fed into collectSecretsForRedaction.
+ * MCP HTTP/SSE server requests. The redactor is built before MCP server config
+ * is assembled, so the underlying credential is read here at build time and fed
+ * into collectSecretsForRedaction.
  *
  * Only fetches the credential when MCP servers are enabled and at least one
  * HTTP/SSE server uses `credential` authentication — mirroring the conditions

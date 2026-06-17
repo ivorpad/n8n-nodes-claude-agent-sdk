@@ -168,9 +168,9 @@ function toProcessEnv(env: Record<string, unknown>): Record<string, string | und
  * Build the environment used to resolve `${VAR}` placeholders in custom HTTP/SSE
  * MCP server headers.
  *
- * SECURITY (V3): this must NOT be the raw host environment. A workflow author can
- * point an MCP server at an arbitrary host and name any `${VAR}` in a custom
- * header; if we resolved against `process.env` wholesale, host secrets such as
+ * This must NOT be the raw host environment. A workflow author can point an MCP
+ * server at an arbitrary host and name any `${VAR}` in a custom header; if we
+ * resolved against `process.env` wholesale, host secrets such as
  * `N8N_ENCRYPTION_KEY` or `DB_POSTGRESDB_PASSWORD` would be exfiltrated. Only the
  * exposable set may resolve: provider vars, proxy vars, injected Secure
  * Environment Variables, and (in allowlist mode) explicitly allowlisted names —

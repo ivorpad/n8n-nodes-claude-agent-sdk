@@ -50,11 +50,11 @@ function normalizeNewlines(value: string): string {
 	return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
 }
 
-// Fail-closed guard against MIME header injection (V9). A CR or LF in a header
-// value would terminate the current header line and let an attacker inject
-// arbitrary headers (e.g. a silent `Bcc:` for exfiltration, or a spoofed
-// `From:`). A newline is never valid inside an email address, so we reject
-// rather than silently strip. Address values flow from node params
+// Fail-closed guard against MIME header injection. A CR or LF in a header value
+// would terminate the current header line and let an attacker inject arbitrary
+// headers (e.g. a silent `Bcc:` for exfiltration, or a spoofed `From:`). A
+// newline is never valid inside an email address, so we reject rather than
+// silently strip. Address values flow from node params
 // (fromEmail/toEmail) which may be n8n expressions bound to upstream/agent data.
 function assertSafeHeaderValue(field: string, value: string): void {
 	if (/[\r\n]/.test(value)) {

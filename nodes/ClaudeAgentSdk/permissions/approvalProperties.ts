@@ -167,37 +167,7 @@ export const approvalProperties: INodeProperties[] = [
 		type: 'number',
 		default: 3600,
 		description:
-			'Maximum seconds to wait for approval (0 = unlimited). After this time, the default action is taken.',
-		displayOptions: {
-			show: {
-				backendMode: ['localCli'],
-				interactiveApprovals: HITL_ENABLED_VALUES,
-			},
-		},
-	},
-	{
-		displayName: 'Default on Timeout',
-		name: 'defaultOnTimeout',
-		type: 'options',
-		options: [
-			{
-				name: 'Deny',
-				value: 'deny',
-				description: 'Deny the tool request and continue execution',
-			},
-			{
-				name: 'Allow',
-				value: 'allow',
-				description: 'Allow the tool request and continue execution',
-			},
-			{
-				name: 'Error',
-				value: 'error',
-				description: 'Throw an error and stop execution',
-			},
-		],
-		default: 'deny',
-		description: 'What to do if approval times out without a response',
+			'Maximum seconds to keep the execution waiting for a HITL response (0 = unlimited)',
 		displayOptions: {
 			show: {
 				backendMode: ['localCli'],
@@ -229,7 +199,7 @@ export const approvalProperties: INodeProperties[] = [
 		type: 'boolean',
 		default: true,
 		description:
-			'Whether the SDK should call putExecutionToWait() directly. Disable when using a channel HITL nodes (Slack/Telegram/...) wired off the SDK Result output.',
+			'Whether the SDK should call putExecutionToWait() directly. Disable when using channel HITL nodes (Slack/Telegram/...) wired off the SDK Result output.',
 		hint:
 			'On: SDK calls n8n wait/resume for browser or webhook approvals. Off: SDK only emits the HITL request for a downstream channel node to dispatch and resume.',
 		displayOptions: {
@@ -324,10 +294,9 @@ export const approvalProperties: INodeProperties[] = [
 		},
 	},
 	{
-		// Security (V8a): `none` is the out-of-the-box default and is intentionally
-		// kept non-breaking, but it leaves the HITL endpoint gated only by the n8n
-		// resume token. Surface that posture in the NDV and recommend a second
-		// factor; the auth layer also logs a runtime warning on this path.
+		// `none` remains the non-breaking default, but it leaves HITL responses
+		// gated only by the n8n resume token. Surface that posture in the NDV and
+		// recommend a second factor; the auth layer also logs a runtime warning.
 		displayName: 'Webhook No-Auth Security Notice',
 		name: 'hitlWebhookNoAuthNotice',
 		type: 'notice',
@@ -436,8 +405,8 @@ export const approvalProperties: INodeProperties[] = [
 		},
 	},
 
-	// NOTE: Notification channels (Webhook, Slack) are now configured on the
-	// dedicated channel nodes (Claude Agent Slack/Telegram/...). The SDK node only does in-stream NDJSON
+	// Notification channels are configured on dedicated channel nodes
+	// (Claude Agent Slack/Telegram/...). The SDK node only emits in-stream NDJSON
 	// notifications during execution.
 ];
 

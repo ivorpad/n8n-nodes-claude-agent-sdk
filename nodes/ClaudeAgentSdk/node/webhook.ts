@@ -110,10 +110,10 @@ function isApprovalPost(args: {
 	body: Record<string, unknown>;
 	query: WebhookQuery;
 }): boolean {
-	// The V6 confirmation form posts `approved` (a string) in the body and, by
-	// posting to the same URL, in the query too. Recognise both — and a real
-	// boolean from programmatic callers — so the explicit POST always routes to
-	// the approval handler even if a proxy strips the query string.
+	// The confirmation form posts `approved` as a string in the body and, by
+	// posting to the same URL, keeps it in the query too. Recognise both — and a
+	// real boolean from programmatic callers — so the explicit POST always routes
+	// to the approval handler even if a proxy strips the query string.
 	const bodyApproved = args.body.approved;
 	return (
 		args.storedInteractionKind === 'approval' ||
@@ -124,7 +124,7 @@ function isApprovalPost(args: {
 }
 
 /**
- * V6 (CSRF-class GET auto-approval): a GET MUST NOT mutate state.
+ * CSRF guard: a GET MUST NOT mutate state.
  *
  * Approve/deny URLs are emailed and posted to chat, so link scanners,
  * unfurlers and browser prefetch issue automatic GETs against them. Instead of
@@ -198,8 +198,8 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 
 		if (preparedRequest.method === 'GET') {
 			if (preparedRequest.query.approved !== undefined) {
-				// V6: GET renders a confirmation page only — it never consumes the
-				// decision. Consumption happens on the explicit POST below.
+				// GET renders a confirmation page only. The decision is consumed on
+				// the explicit POST below.
 				return renderApprovalConfirmation({
 					ctx: this,
 					query: preparedRequest.query,

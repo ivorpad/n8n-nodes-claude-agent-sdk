@@ -14,8 +14,6 @@ import { createHash, randomBytes } from 'crypto';
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface ApprovalHandlerConfig {
-	defaultTimeoutMs: number;
-	defaultOnTimeout: 'allow' | 'deny' | 'error';
 	approvalMatchMode: 'tool' | 'tool+input';
 }
 
@@ -33,8 +31,6 @@ type QuestionDef = Array<{
 }>;
 
 const DEFAULT_CONFIG: ApprovalHandlerConfig = {
-	defaultTimeoutMs: 3600 * 1000, // 1 hour
-	defaultOnTimeout: 'deny',
 	approvalMatchMode: 'tool',
 };
 
@@ -253,27 +249,6 @@ export class ApprovalHandler {
 		});
 
 		return urls;
-	}
-
-	// ─────────────────────────────────────────────────────────────────────────
-	// Execution Control
-	// ─────────────────────────────────────────────────────────────────────────
-
-	computeWaitTill(): Date {
-		if (this.config.defaultTimeoutMs <= 0) {
-			return new Date('3000-01-01T00:00:00.000Z');
-		}
-		return new Date(Date.now() + this.config.defaultTimeoutMs);
-	}
-
-	async pauseForApproval(): Promise<void> {
-		const waitTill = this.computeWaitTill();
-		await this.execFunctions.putExecutionToWait(waitTill);
-	}
-
-	async pauseWithTimeout(timeoutMs: number): Promise<void> {
-		const waitTill = new Date(Date.now() + timeoutMs);
-		await this.execFunctions.putExecutionToWait(waitTill);
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────

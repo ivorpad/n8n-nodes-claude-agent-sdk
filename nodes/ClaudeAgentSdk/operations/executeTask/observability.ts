@@ -26,8 +26,8 @@ interface InvocationObservabilityCollectorOptions {
 	maxBytes: number;
 	redactPayloads: boolean;
 	/**
-	 * Masks secret values inside recorded payloads (V4: observability sink).
-	 * Applied in addition to size summarization. Defaults to a no-op.
+	 * Masks secret values inside recorded payloads. Applied in addition to size
+	 * summarization. Defaults to a no-op.
 	 */
 	secretRedactor?: SecretsRedactor;
 	context?: InvocationObservabilityContext;
@@ -311,4 +311,3 @@ export class InvocationObservabilityCollector {
 		};
 	}
 }
-

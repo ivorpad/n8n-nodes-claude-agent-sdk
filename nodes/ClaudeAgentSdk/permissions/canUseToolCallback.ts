@@ -75,8 +75,9 @@ interface CreateCanUseToolCallbackParams {
 	workingDirectory?: string;
 	executionId?: string;
 	sharedState?: SharedExecutionState;
-	/** When set, approval/question notifications are emitted immediately into
-	 *  the stream at deny-time rather than deferred to waitForPendingInteractions. */
+	/** When set, approval/question notifications are emitted as an in-stream
+	 * preview when the tool call is denied for HITL. The execution wait still
+	 * belongs to waitForPendingInteractions when sdkOwnsWaitResume is true. */
 	immediateNotificationChannel?: import('../notifications/types').NotificationChannel;
 }
 
@@ -428,11 +429,9 @@ export function createCanUseToolCallback(
 
 		runtimePendingState.addInteraction(approvalInteraction);
 
-		// Emit approval notification immediately into the stream so the client
-		// can render approve/deny buttons without waiting for the execution to
-		// finish. When sdkOwnsWaitResume is true the deferred path in
-		// waitForPendingInteractions handles this; the immediate channel covers
-		// the "no wait" companion pattern.
+		// Emit an in-stream preview so clients can render approve/deny buttons
+		// before the execution reaches its authoritative wait state. The deferred
+		// notification path skips interactions already previewed this way.
 		if (immediateNotificationChannel) {
 			const expiresAt = new Date(Date.now() + timeoutMs).toISOString();
 			const approvalUrls = approvalHandler.createApprovalUrls(

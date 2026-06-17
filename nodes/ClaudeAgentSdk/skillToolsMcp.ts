@@ -124,12 +124,12 @@ const DEFAULT_RUNNER_CANDIDATES: Array<{ entry: string; runtime: 'python' | 'nod
 /**
  * Minimal environment variables forwarded to a spawned skill subprocess.
  *
- * SECURITY (V11c): a runnable skill's `command` is discovered from a
- * `TOOL.json`/`tool.json` (or a `run.*` entrypoint) that may live in a repo the
- * agent operates on. Passing `process.env` wholesale would hand that
- * attacker-controllable subprocess the ENTIRE host environment of the n8n
- * process — provider tokens (`ANTHROPIC_API_KEY`), the n8n encryption key, DB
- * passwords, etc. We instead forward only this allowlist of vars a normal CLI
+ * A runnable skill's `command` is discovered from a `TOOL.json`/`tool.json` (or
+ * a `run.*` entrypoint) that may live in a repo the agent operates on. Passing
+ * `process.env` wholesale would hand that attacker-controllable subprocess the
+ * ENTIRE host environment of the n8n process — provider tokens
+ * (`ANTHROPIC_API_KEY`), the n8n encryption key, DB passwords, etc. We instead
+ * forward only this allowlist of vars a normal CLI
  * tool needs to run, and we explicitly drop dangerous code-injection vars.
  */
 const SKILL_TOOL_ENV_ALLOWLIST = [
@@ -453,9 +453,9 @@ async function executeRunnableSkillTool(args: {
 	const startedAtMs = Date.now();
 
 	return await new Promise((resolve, reject) => {
-		// SECURITY (V11c): forward only a minimal, filtered env — NEVER the full
-		// host environment. `tool.command` may come from a TOOL.json discovered in
-		// a repo the agent operates on, so the subprocess is attacker-influenced.
+		// Forward only a minimal, filtered env — NEVER the full host environment.
+		// `tool.command` may come from a TOOL.json discovered in a repo the agent
+		// operates on, so the subprocess is attacker-influenced.
 		// NOTE: discovery still scans `.claude/skills` under the working directory
 		// (see discoverSkills); restricting that surface to a trusted skill source
 		// dir is a larger refactor tracked separately — the env filter is the

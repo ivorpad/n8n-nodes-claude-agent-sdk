@@ -63,8 +63,8 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 
 	// --- Slack interaction payload path (Block Kit button clicks) ---
 	const rawBody = this.getBodyData() as Record<string, unknown>;
-	// Provider-shape detection + signature verification is centralized so it always
-	// runs before any decision is consumed (V2: no shape-bypass into the query path).
+	// Provider-shape detection and signature verification are centralized so they
+	// always run before any decision is consumed.
 	const verification = verifyChannelWebhook(this, 'slack', {
 		slackSigningSecret: this.getNodeParameter('slackSigningSecret', ''),
 	});
@@ -179,7 +179,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { webhookResponse: 'Error: Unrecognized interaction payload' };
 	}
 
-	// --- URL query param path (legacy / fallback) ---
+	// --- Signed URL query path ---
 	const requestId = typeof query.requestId === 'string' ? query.requestId : '';
 	if (!requestId) {
 		return { webhookResponse: 'Error: Missing requestId parameter' };

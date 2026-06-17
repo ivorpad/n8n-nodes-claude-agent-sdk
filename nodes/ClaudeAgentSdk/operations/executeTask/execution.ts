@@ -66,7 +66,7 @@ export async function executeStreaming(params: {
 	sharedState?: SharedExecutionState;
 	suppressReplayStreamingMessages?: boolean;
 	shouldHaltOnPendingInteraction?: () => boolean;
-	/** Redacts secrets from assembled error/stderr before throwing (V4). */
+	/** Redacts secrets from assembled error/stderr before throwing. */
 	secretRedactor?: SecretsRedactor;
 }): Promise<ExecutionResult> {
 	const {
@@ -315,7 +315,7 @@ export async function executeNonStreaming(params: {
 	queryResult: QueryHandle;
 	stderrOutput: string[];
 	shouldHaltOnPendingInteraction?: () => boolean;
-	/** Redacts secrets from assembled error/stderr before throwing (V4). */
+	/** Redacts secrets from assembled error/stderr before throwing. */
 	secretRedactor?: SecretsRedactor;
 }): Promise<ExecutionResult> {
 	const {

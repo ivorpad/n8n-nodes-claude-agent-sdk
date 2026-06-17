@@ -233,7 +233,7 @@ export async function setupApprovalWiring(args: {
 	// Notification channel for HITL payloads. Deferred sends in
 	// waitForPendingInteractions run AFTER putExecutionToWait() (409-safe).
 	// The same channel may also be passed as immediateNotificationChannel for
-	// early NDJSON preview during canUseTool; see AGENTS.md / hitl-learnings.md.
+	// early NDJSON previews during canUseTool.
 	let approvalNotificationChannel: NotificationChannel | undefined;
 	let hitlInteractionStoreHandle: HitlInteractionStoreHandle | undefined;
 
@@ -252,7 +252,7 @@ export async function setupApprovalWiring(args: {
 
 		// Build in-stream notification channel (NDJSON only).
 		// External notification channels (Webhook, Slack) are now handled by
-		// the dedicated channel nodes (Claude Agent Slack/Telegram/...) when they receive the approval request.
+		// the dedicated channel nodes when they receive the HITL request item.
 		if (activeSendChunkFn) {
 			const streamHandler = new StreamingHandler(streamConfig, activeSendChunkFn, itemIndex);
 			approvalNotificationChannel = new NdjsonChannel(streamHandler);
@@ -260,7 +260,6 @@ export async function setupApprovalWiring(args: {
 
 		// When HITL handles AskUserQuestion, remove it from allowedTools so the
 		// SDK actually calls canUseToolCallback instead of auto-approving it.
-		// See: HITL-LEARNINGS — "AskUserQuestion allowedTools bypass" root cause.
 		if (approvalConfig.handleAskUserQuestion) {
 			const idx = allowedTools.indexOf('AskUserQuestion');
 			if (idx >= 0) {

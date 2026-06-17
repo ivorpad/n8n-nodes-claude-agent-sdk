@@ -21,26 +21,21 @@
 		"build:watch": "tsc --watch",
 		"deadcode": "knip --reporter compact --include files,exports",
 		"deadcode:ts": "knip --reporter compact --include files,exports",
-		"dev": "bash scripts/dev.sh",
 		"lint": "n8n-node lint",
 		"lint:fix": "n8n-node lint --fix",
 		"release": "n8n-node release",
-		"release:publish": "node scripts/release.mjs",
 		"prepublishOnly": "n8n-node prerelease",
-		"postinstall": "node scripts/patch-pkce-challenge.mjs",
 		"prepare": "n8n-node build",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"typecheck": "tsc --noEmit",
 		"typecheck:parity": "tsc -p tsconfig.parity.json --noEmit",
-		"test:parity": "vitest run nodes/ClaudeAgentSdk/__tests__/parity/*.test.ts",
-		"clock": "rm -f /tmp/cc-skill-check.lock && echo 'removed' || echo 'failed'"
+		"test:parity": "vitest run nodes/ClaudeAgentSdk/__tests__/parity/*.test.ts"
 	},
 	"files": [
 		"dist",
-		"!dist/tsconfig.tsbuildinfo",
-		"scripts/patch-pkce-challenge.mjs"
+		"!dist/tsconfig.tsbuildinfo"
 	],
 	"n8n": {
 		"n8nNodesApiVersion": 1,
@@ -85,7 +80,6 @@
 		"knip": "^6.3.1",
 		"n8n-workflow": "^2.25.0",
 		"prettier": "3.6.2",
-		"release-it": "^19.0.4",
 		"typescript": "5.9.2",
 		"vitest": "^4.0.14",
 		"vitest-mock-extended": "^3.1.0"

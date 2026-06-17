@@ -569,7 +569,7 @@ export function buildQuestionFormHtml(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Approval Confirmation Page (V6: CSRF-safe GET → POST)
+// Approval Confirmation Page (CSRF-safe GET to POST)
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface ApprovalConfirmationParams {
@@ -581,10 +581,10 @@ interface ApprovalConfirmationParams {
 /**
  * Render a confirmation page for an approve/deny decision.
  *
- * Security (V6): approve/deny links are emailed and posted to chat, where link
- * scanners, unfurlers and browser prefetch issue automatic GET requests. A GET
- * must therefore never consume the decision. This page is what the GET returns:
- * a plain HTML form that POSTs the decision back to the *same* URL (so the
+ * Approve/deny links are emailed and posted to chat, where link scanners,
+ * unfurlers and browser prefetch issue automatic GET requests. A GET must
+ * therefore never consume the decision. This page is what the GET returns: a
+ * plain HTML form that POSTs the decision back to the *same* URL (so the
  * `approved`/`requestId` query params are preserved), consumed only when the
  * reviewer deliberately clicks the button.
  *

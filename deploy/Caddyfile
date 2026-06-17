@@ -1,7 +1,0 @@
-{$DOMAIN} {
-    reverse_proxy n8n:5678
-}
-
-grafana.{$DOMAIN} {
-    reverse_proxy grafana:3000
-}

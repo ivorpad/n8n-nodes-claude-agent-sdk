@@ -297,9 +297,8 @@ function unwrapWebhookLoopbackEnvelope(
 export function extractEngineHitlResponse(engineResponse: EngineResponse): HitlResponseEnvelope {
 	const meta = readHitlMetadata(engineResponse.metadata);
 	const hitlResult = engineResponse.actionResponses?.[0];
-	// The engine rewires tool node output to `ai_tool` when action.type is AiTool
-	// (via node.rewireOutputLogTo in requests-response.js). Same pattern as Agent V3's
-	// processHitlResponses.ts which reads from data.data.ai_tool[0][0].json.
+	// The engine rewires tool-node output to `ai_tool` when action.type is AiTool,
+	// matching n8n's HITL response shape at data.data.ai_tool[0][0].json.
 	const hitlData =
 		hitlResult?.data?.data?.ai_tool?.[0]?.[0]?.json || hitlResult?.data?.data?.main?.[0]?.[0]?.json;
 

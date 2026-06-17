@@ -14,7 +14,6 @@ export interface ApprovalConfig {
 	specificTools: string[];
 	approvalMatchMode: 'tool' | 'tool+input';
 	timeoutSeconds: number;
-	defaultOnTimeout: 'allow' | 'deny' | 'error';
 	handleAskUserQuestion: boolean;
 	sdkOwnsWaitResume?: boolean;
 	allowPermissionModeOverride: boolean;
@@ -58,7 +57,6 @@ export function parseApprovalConfig(
 			specificTools: [],
 			approvalMatchMode: 'tool',
 			timeoutSeconds: 3600,
-			defaultOnTimeout: 'deny',
 			handleAskUserQuestion: false,
 			sdkOwnsWaitResume: true,
 			allowPermissionModeOverride: false,
@@ -81,11 +79,6 @@ export function parseApprovalConfig(
 			'tool',
 		) as ApprovalConfig['approvalMatchMode'],
 		timeoutSeconds: getNodeParameter('approvalTimeout', itemIndex, 3600) as number,
-		defaultOnTimeout: getNodeParameter(
-			'defaultOnTimeout',
-			itemIndex,
-			'deny',
-		) as ApprovalConfig['defaultOnTimeout'],
 		handleAskUserQuestion: getNodeParameter('handleAskUserQuestion', itemIndex, true) as boolean,
 		sdkOwnsWaitResume: getNodeParameter('sdkOwnsWaitResume', itemIndex, true) as boolean,
 		allowPermissionModeOverride: getNodeParameter(

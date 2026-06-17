@@ -165,8 +165,8 @@ export async function createHitlInteractionStoreHandle(args: {
 	ctx: StoreContext;
 	credentialName?: string;
 	/**
-	 * Masks secrets before persisting interaction rows (V4: HITL store sink).
-	 * Optional — webhook/read paths default to a no-op redactor.
+	 * Masks secrets before persisting interaction rows. Optional: webhook/read
+	 * paths default to a no-op redactor.
 	 */
 	secretRedactor?: SecretsRedactor;
 }): Promise<HitlInteractionStoreHandle> {

@@ -48,12 +48,12 @@ describe('ClaudeSkillTool node', () => {
 				name: 'my-skill',
 				description: 'runs checks',
 				source: 'project',
-				path: '/tmp/project/.claude/skills/my-skill/SKILL.md',
+				path: '/workspace/project/.claude/skills/my-skill/SKILL.md',
 			},
 		]);
 
 		const node = new ClaudeSkillTool();
-		const ctx = createLoadOptionsContext({ configured: '/tmp/project', includeUserSkills: true });
+		const ctx = createLoadOptionsContext({ configured: '/workspace/project', includeUserSkills: true });
 
 		const options = await node.methods.loadOptions.discoverSkills.call(ctx as never);
 		expect(options).toEqual([
@@ -62,7 +62,7 @@ describe('ClaudeSkillTool node', () => {
 				value: 'my-skill',
 			},
 		]);
-		expect(discoverSkills).toHaveBeenCalledWith('/tmp/project', { includeUserSkills: true });
+		expect(discoverSkills).toHaveBeenCalledWith('/workspace/project', { includeUserSkills: true });
 	});
 
 	it('builds an AiTool response that executes a runnable selected skill', async () => {
@@ -72,7 +72,7 @@ describe('ClaudeSkillTool node', () => {
 				skillName: 'my-skill',
 				toolName: 'skill__my_skill',
 				description: 'run my skill',
-				skillDir: '/tmp/project/.claude/skills/my-skill',
+				skillDir: '/workspace/project/.claude/skills/my-skill',
 				command: 'node',
 				args: ['run.js'],
 				timeoutMs: 120000,
@@ -89,7 +89,7 @@ describe('ClaudeSkillTool node', () => {
 
 		const params: Record<string, unknown> = {
 			skillName: 'my-skill',
-			workingDirectory: '/tmp/project',
+			workingDirectory: '/workspace/project',
 			timeoutMs: 120000,
 			toolName: '',
 			toolDescription: '',
@@ -141,8 +141,8 @@ describe('ClaudeSkillTool node', () => {
 				skillName: 'read-github',
 				toolName: 'skill__read_github',
 				description: 'Read GitHub instructions',
-				skillDir: '/tmp/project/.claude/skills/read-github',
-				skillPath: '/tmp/project/.claude/skills/read-github/SKILL.md',
+				skillDir: '/workspace/project/.claude/skills/read-github',
+				skillPath: '/workspace/project/.claude/skills/read-github/SKILL.md',
 				frontmatter: { name: 'read-github' },
 				instructions: 'Read repository and summarize',
 			},
@@ -158,7 +158,7 @@ describe('ClaudeSkillTool node', () => {
 
 		const params: Record<string, unknown> = {
 			skillName: 'read-github',
-			workingDirectory: '/tmp/project',
+			workingDirectory: '/workspace/project',
 			timeoutMs: 120000,
 			toolName: '',
 			toolDescription: '',
@@ -202,7 +202,7 @@ describe('ClaudeSkillTool node', () => {
 				skillName: 'my-skill',
 				toolName: 'skill__my_skill',
 				description: 'run my skill',
-				skillDir: '/tmp/project/.claude/skills/my-skill',
+				skillDir: '/workspace/project/.claude/skills/my-skill',
 				command: 'node',
 				args: ['run.js'],
 				timeoutMs: 120000,
@@ -212,7 +212,7 @@ describe('ClaudeSkillTool node', () => {
 
 		const params: Record<string, unknown> = {
 			skillName: 'my-skill',
-			workingDirectory: '/tmp/project',
+			workingDirectory: '/workspace/project',
 			timeoutMs: 120000,
 			toolName: '',
 			toolDescription: '',
@@ -325,7 +325,7 @@ describe('ClaudeSkillTool node', () => {
 	it('fails fast when skill is not selected', async () => {
 		const params: Record<string, unknown> = {
 			skillName: '__none__',
-			workingDirectory: '/tmp/project',
+			workingDirectory: '/workspace/project',
 			timeoutMs: 120000,
 			toolName: '',
 			toolDescription: '',

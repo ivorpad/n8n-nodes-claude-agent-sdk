@@ -677,12 +677,11 @@ function resolveResponderIdentity(args: {
 	};
 }
 
-// V8a (insecure default + missing warning): when HITL webhooks are enabled
-// with `authentication: 'none'`, the endpoint is gated ONLY by the n8n resume
-// token in the URL. That is an intentional, non-breaking fallback (see the
-// `none` branch below), but it must be surfaced loudly so an operator knows a
-// second factor is recommended. We log on the request that takes the fallback;
-// the warning never changes the auth outcome.
+// When HITL webhooks use `authentication: 'none'`, the endpoint is gated only
+// by the n8n resume token in the URL. That is an intentional, non-breaking
+// fallback, but it must be surfaced loudly so an operator knows a second factor
+// is recommended. We log on the request that takes the fallback; the warning
+// never changes the auth outcome.
 function warnNoneAuthFallback(ctx: IWebhookFunctions): void {
 	// `logger` is always present on a real n8n context; guard defensively so
 	// lightweight test/synthetic contexts without one still authenticate.
@@ -695,8 +694,7 @@ function warnNoneAuthFallback(ctx: IWebhookFunctions): void {
 		+ 'approval/question endpoint is protected ONLY by the n8n resume token in '
 		+ 'the URL. Anyone who obtains that URL (forwarded email, chat unfurl, logs) '
 		+ 'can answer the request. Enabling Webhook Authentication (Basic/Header/JWT) '
-		+ 'as a second factor is strongly recommended. See SECURITY.md (HITL Webhook '
-		+ 'Authentication).',
+		+ 'as a second factor is strongly recommended.',
 	);
 }
 
@@ -718,10 +716,9 @@ export async function authenticateHitlWebhookRequest(args: {
 			};
 		}
 
-		// Intentional, logged default-allow fallback (V8a): with no extra auth
-		// layer the request is gated solely by the n8n resume token. This is the
-		// out-of-the-box behaviour and is kept non-breaking on purpose; the
-		// warning makes the weaker posture visible to operators.
+		// Intentional, logged default-allow fallback: with no extra auth layer the
+		// request is gated solely by the n8n resume token. This is kept
+		// non-breaking; the warning makes the weaker posture visible to operators.
 		warnNoneAuthFallback(ctx);
 		return { ok: true };
 	}

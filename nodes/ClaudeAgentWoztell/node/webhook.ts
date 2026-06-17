@@ -63,7 +63,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	// webhook, so there is no verified provider callback here. Only allow an unsigned
 	// query decision when n8n validated the resume signature upstream (waitForReply).
 	// In dispatchAndExit mode (Woztell's default) the durable companion URL carries no
-	// n8n signature, so reject unsigned query decisions (V2: bearer-token path).
+	// n8n signature, so reject unsigned query decisions.
 	if (!isUnsignedQueryDecisionAllowed(this)) {
 		return forbiddenProviderWebhookResponse(this);
 	}

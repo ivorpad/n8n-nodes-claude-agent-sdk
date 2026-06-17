@@ -227,7 +227,7 @@ export const additionalOptionsProperty: INodeProperties = {
 			name: 'useSecureEnv',
 			type: 'boolean',
 			default: false,
-			description: 'Whether to inject API keys and secrets from the "Secure Environment Variables" credential into the Claude subprocess and resolve ${VAR} placeholders in MCP HTTP headers. Values are encrypted at rest and best-effort redacted from the node output, streamed events, observability log, HITL store, and error messages (exact-value masking — see SECURITY.md).',
+			description: 'Whether to inject API keys and secrets from the "Secure Environment Variables" credential into the Claude subprocess and resolve ${VAR} placeholders in MCP HTTP headers. Values are encrypted at rest and best-effort redacted from the node output, streamed events, observability log, HITL store, and error messages (exact-value masking).',
 		},
 		{
 			displayName: 'Isolate Claude Config Directory',

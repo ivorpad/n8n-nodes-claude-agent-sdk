@@ -51,9 +51,9 @@ export class PostgresHitlInteractionStore implements HitlInteractionStore {
 		tableName: string;
 		/**
 		 * Masks secret values before they are persisted to the durable HITL
-		 * interaction table (V4: HITL store sink). Covers the task prompt
-		 * (original_task_base64), tool_input, questions, answers,
-		 * reviewer_message and updated_input. Defaults to a no-op.
+		 * interaction table. Covers the task prompt (original_task_base64),
+		 * tool_input, questions, answers, reviewer_message and updated_input.
+		 * Defaults to a no-op.
 		 */
 		secretRedactor?: SecretsRedactor;
 	}) {

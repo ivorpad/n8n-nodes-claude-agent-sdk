@@ -161,7 +161,7 @@ export async function runAgentExecution(args: {
 	preventFreshFallbackOnResumeFailure?: boolean;
 	suppressReplayStreamingMessages?: boolean;
 	observabilityCollector?: InvocationObservabilityCollector;
-	/** Redacts secrets from assembled error/stderr before throwing (V4). */
+	/** Redacts secrets from assembled error/stderr before throwing. */
 	secretRedactor?: SecretsRedactor;
 }): Promise<ExecutionResult> {
 	const {

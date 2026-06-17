@@ -1,7 +1,0 @@
-*
-!Dockerfile
-!Dockerfile.base
-!Dockerfile.runners
-!Dockerfile.code-server
-!docker-bake.hcl
-!n8n-task-runners.json

@@ -86,8 +86,8 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		? (body.callback_query as Record<string, unknown>)
 		: undefined;
 
-	// Provider-shape detection + secret-token verification is centralized so it
-	// always runs before any decision is consumed (V2: no shape-bypass).
+	// Provider-shape detection and secret-token verification are centralized so
+	// they always run before any decision is consumed.
 	const verification = verifyChannelWebhook(this, 'telegram', {
 		telegramWebhookSecretToken: this.getNodeParameter('telegramWebhookSecretToken', ''),
 	});
@@ -217,7 +217,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { webhookResponse: 'OK' };
 	}
 
-	// --- URL query param path (legacy / fallback) ---
+	// --- Signed URL query path ---
 	const requestId = typeof query.requestId === 'string' ? query.requestId : '';
 	if (!requestId) {
 		return { webhookResponse: 'Error: Missing requestId parameter' };
@@ -225,7 +225,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 
 	// Only allow an unsigned query decision when n8n validated the resume signature
 	// upstream (waitForReply). In dispatchAndExit mode (Telegram's default) the durable
-	// companion URL carries no n8n signature, so reject unsigned query decisions (V2).
+	// companion URL carries no n8n signature, so reject unsigned query decisions.
 	if (!isVerifiedProvider && !isUnsignedQueryDecisionAllowed(this)) {
 		return forbiddenProviderWebhookResponse(this);
 	}

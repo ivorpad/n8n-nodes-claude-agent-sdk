@@ -144,8 +144,8 @@ describe('skillToolsMcp', () => {
 			skillName: 'read-github',
 			toolName: 'skill__read_github',
 			description: 'Read GitHub information',
-			skillDir: '/tmp/skills/read-github',
-			skillPath: '/tmp/skills/read-github/SKILL.md',
+			skillDir: '/workspace/skills/read-github',
+			skillPath: '/workspace/skills/read-github/SKILL.md',
 			frontmatter: { name: 'read-github' },
 			instructions: 'Analyze repository changes and summarize.',
 		};

@@ -265,44 +265,6 @@ describe('ApprovalHandler', () => {
 		});
 	});
 
-	// ─── Wait/timeout ───────────────────────────────────────────────────
-
-	describe('computeWaitTill', () => {
-		it('returns future date based on timeout', () => {
-			const handler60 = new ApprovalHandler(exec, 0, {
-				defaultTimeoutMs: 60_000,
-			});
-			const waitTill = handler60.computeWaitTill();
-			expect(waitTill.getTime()).toBeGreaterThan(Date.now());
-			expect(waitTill.getTime()).toBeLessThanOrEqual(Date.now() + 60_000 + 100);
-		});
-
-		it('returns far-future date for zero timeout (unlimited)', () => {
-			const handlerUnlimited = new ApprovalHandler(exec, 0, {
-				defaultTimeoutMs: 0,
-			});
-			const waitTill = handlerUnlimited.computeWaitTill();
-			expect(waitTill.getFullYear()).toBe(3000);
-		});
-	});
-
-	describe('pauseForApproval', () => {
-		it('calls putExecutionToWait', async () => {
-			await handler.pauseForApproval();
-			expect(exec.putExecutionToWait).toHaveBeenCalledOnce();
-		});
-	});
-
-	describe('pauseWithTimeout', () => {
-		it('calls putExecutionToWait with custom timeout', async () => {
-			await handler.pauseWithTimeout(5_000);
-			expect(exec.putExecutionToWait).toHaveBeenCalledOnce();
-			const arg = exec.putExecutionToWait.mock.calls[0][0] as Date;
-			expect(arg.getTime()).toBeGreaterThan(Date.now());
-			expect(arg.getTime()).toBeLessThanOrEqual(Date.now() + 5_000 + 100);
-		});
-	});
-
 	// ─── Factory function ───────────────────────────────────────────────
 
 	describe('createApprovalHandler factory', () => {
@@ -316,12 +278,9 @@ describe('ApprovalHandler', () => {
 		it('merges partial config', () => {
 			const h = createApprovalHandler(exec, 0, {
 				approvalMatchMode: 'tool+input',
-				defaultTimeoutMs: 120_000,
 			});
 			const config = h.getConfig();
 			expect(config.approvalMatchMode).toBe('tool+input');
-			expect(config.defaultTimeoutMs).toBe(120_000);
-			expect(config.defaultOnTimeout).toBe('deny'); // default preserved
 		});
 	});
 });

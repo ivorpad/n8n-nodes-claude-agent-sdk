@@ -53,7 +53,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 
 	// Discord REQUIRES verifying X-Signature-Ed25519 + X-Signature-Timestamp against
 	// the application public key before processing ANY interaction, and answering the
-	// type:1 PING handshake with a type:1 PONG (V2: previously no verification existed).
+	// type:1 PING handshake with a type:1 PONG.
 	const verification = verifyChannelWebhook(this, 'discord', {
 		discordPublicKey: this.getNodeParameter('discordPublicKey', ''),
 	});
@@ -181,7 +181,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 		return { webhookResponse: JSON.stringify({ type: 4, data: { content: 'Unrecognized callback' } }) };
 	}
 
-	// --- URL query param path (legacy / fallback) ---
+	// --- Signed URL query path ---
 	const requestId = typeof query.requestId === 'string' ? query.requestId : '';
 	if (!requestId) {
 		return { webhookResponse: 'Error: Missing requestId parameter' };

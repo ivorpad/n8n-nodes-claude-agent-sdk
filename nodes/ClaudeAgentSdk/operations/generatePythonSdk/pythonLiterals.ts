@@ -18,10 +18,10 @@ export function esc(s: string | undefined | null): string {
  * Escape a value for embedding inside a Python triple-quoted string literal
  * (`"""…"""`).
  *
- * SECURITY (V13): escaping only `"""` is insufficient. A value ending in a
- * backslash (`…\`) would escape the opening quote of the closing `"""`,
- * continuing or breaking the literal; a value ending in `"` would leave a
- * dangling quote after the delimiter. Both let crafted prompts inject code
+ * Escaping only `"""` is insufficient. A value ending in a backslash (`…\`)
+ * would escape the opening quote of the closing `"""`, continuing or breaking
+ * the literal; a value ending in `"` would leave a dangling quote after the
+ * delimiter. Both let crafted prompts inject code
  * into the generated script. We therefore escape backslashes FIRST (so a
  * trailing `\` becomes a literal `\\`), then escape every double-quote, which
  * makes it impossible for any run of quotes to close the literal early or to

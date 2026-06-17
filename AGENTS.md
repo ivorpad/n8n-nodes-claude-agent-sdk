@@ -1,7 +1,11 @@
 # AGENTS.md
 
-Minimal, production-only constraints for this n8n Claude Agent SDK repo.  
-`CLAUDE.md` states the public repository purpose and points to this file for instructions.
+Production constraints for `n8n-nodes-claude-agent-sdk`, the self-hosted n8n
+community-node package that integrates the Claude Agent SDK and Claude Code into
+n8n workflows.
+
+`CLAUDE.md` states the repository purpose; this file carries the coding and
+runtime conventions agents must preserve.
 
 ## Must-Follow Invariants
 - Dynamic inline imports are a HARD NO.
@@ -12,51 +16,37 @@ Minimal, production-only constraints for this n8n Claude Agent SDK repo.
 - Do not send `sessionId` with `resume` in normal flows. `sessionId` is for new sessions only.
 - HITL approval/question resume must use `resume` and must not force `forkSession`.
 - On non-HITL resume failures (`session already in use` or process `exit code 1`), clear resume/session options and retry fresh once.
-- **HITL URLs and wait:** Do not call signed `webhook-waiting` / resume links until after `putExecutionToWait()` succeeds (avoids 409 “execution finished already”). When NDJSON streaming is enabled, the SDK may emit an **in-stream preview** of the same HITL payload during `canUseTool` for UI responsiveness; treat that as **non-authoritative for resume timing**—companions and external automations must still wait until the execution is in the waiting state (or use the post-wait notification only).
+- **HITL URLs and wait:** Do not call signed `webhook-waiting` / resume links until after `putExecutionToWait()` succeeds (avoids 409 “execution finished already”). When NDJSON streaming is enabled, the SDK may emit an **in-stream preview** of the same HITL payload during `canUseTool` for UI responsiveness; treat that as **non-authoritative for resume timing**—external automations must still wait until the execution is in the waiting state (or use the post-wait notification only).
 - On HITL resume, send a minimal continuation prompt; never resend the full original task.
 - Treat `resumeSessionAt` as best-effort optimization; if anchor UUID is missing/invalid, fall back to plain `resume`.
-- Wait/resume ownership stays in SDK execute flow (`executeTask`), not in companion adapter nodes.
+- Wait/resume ownership stays in SDK execute flow (`executeTask`), not in channel adapter nodes.
 - In-memory AGT rate-limit state is not a production control. Treat current DID-scoped AGT limits as per-execution guardrails only; durable/shared quotas must live in persisted or shared infrastructure.
 - For Postgres session memory concurrency, use per-session advisory locking for the execution lifecycle. **Simple** and **Redis** session memory nodes do not implement `acquireExecutionLock`; with **queue mode / multiple workers**, prefer Postgres session memory for the same deterministic `chatSessionId`, or accept the risk of concurrent runs fighting over one Claude session.
 - For Postgres schema changes, never alter blindly; verify schema first (for example via `pg_attribute`) and use `createPostgresConnectionHandle()`.
 
+## Project Conventions
+- Keep this repository focused on package source, tests, public examples, and release metadata. Deployment stacks, private runbooks, generated outputs, caches, local agent config, packed tarballs, logs, and secrets do not belong here.
+- Treat `README.md`, `CHANGELOG.md`, `MANAGED_AGENTS.md`, and `docs/` as public references. Keep `docs/` user-facing and free of private deployment details, generated artifacts, local-only paths, and secret-bearing examples.
+- Use canonical types from `n8n-workflow` and `@anthropic-ai/claude-agent-sdk`; do not create shadow SDK or n8n types when upstream types are available.
+- Keep node structure consistent: node descriptions, execute/webhook logic, transports, stores, credentials, and shared channel runtime stay in their existing module boundaries.
+- Prefer static imports and small dedicated adapters over broad utility modules. Runtime-specific loading belongs only in the allowlisted loader modules.
+- Tests use Vitest and should live near the behavior they cover, usually in `__tests__` beside the node or shared runtime being changed.
+- Before release-facing changes, run the narrow relevant tests plus `pnpm run typecheck` when practical.
+
 ## Hot Paths
+- `nodes/ClaudeAgentSdk/ClaudeAgentSdk.node.ts`
+- `nodes/ClaudeAgentSdk/schema.ts`
+- `nodes/ClaudeAgentSdk/operations/executeTask.ts`
 - `nodes/ClaudeAgentSdk/operations/executeTask/`
 - `nodes/ClaudeAgentSdk/operations/executeTask/steps/querySetup.ts`
 - `nodes/ClaudeAgentSdk/operations/executeTask/steps/runExecution.ts`
 - `nodes/ClaudeAgentSdk/operations/executeTask/steps/interactiveApprovals.ts`
+- `nodes/ClaudeAgentSdk/sdk/`
+- `nodes/ClaudeAgentSdk/hitl/`
+- `nodes/ClaudeAgentChannelShared/core/`
+- `nodes/ClaudeAgentSlack/`, `nodes/ClaudeAgentDiscord/`, `nodes/ClaudeAgentTelegram/`
+- `nodes/ClaudeAgentEmail/`, `nodes/ClaudeAgentGmail/`, `nodes/ClaudeAgentWhatsApp/`, `nodes/ClaudeAgentWoztell/`
 - `nodes/memory/PostgresSessionMemory/PostgresSessionMemory.node.ts`
-
-## Knowledge Map
-
-Everything an agent needs is in this repo. If it's not here, it doesn't exist.
-Single source of truth: `docs/`.
-
-### Bootstrap (read first in every session)
-- `docs/CURRENT-STATE.md` — project overview, active workstreams, current version
-
-### Documentation (`docs/`)
-| Doc | What it covers |
-|-----|---------------|
-| `docs/architecture.md` | Module map, node properties, ESM compat |
-| `docs/guides/agt-governance.md` | Current AGT node surface, recipes, field-path rules |
-| `docs/guides/eval-via-rest-api.md` | REST eval workflow, UUID sessionId requirement |
-| `docs/guides/frontend-hitl.md` | Recommended browser/webhook HITL architecture and client loop |
-| `docs/setup/hitl-channels.md` | WhatsApp/Telegram HITL channel setup |
-| `docs/setup/durability.md` | Runtime durability validation config |
-| `docs/setup/observability-persistence.md` | Postgres observability persistence setup |
-| `docs/guides/operations.md` | OOM, load, payload stability runbook |
-| `docs/guides/hitl-learnings.md` | HITL rules, current architecture, key files |
-| `docs/guides/managed-agents-learnings.md` | Managed Agents backend: SSE streaming, file artifacts, n8n gotchas |
-| `docs/guides/hitl-webhook-auth-qa.md` | Manual + automated QA checklist for SDK HITL webhook auth/identity |
-| `docs/guides/secure-env-vars.md` | Secure env injection setup, precedence, allowlist behavior, and script usage |
-| `docs/guides/secret-incident-response.md` | Secret leak response: rotation, repo cleanup, history rewrite checklist |
-| `docs/guides/hook-handlers.md` | Webhook-based hook handlers for approval, audit, error visibility, notifications |
-| `docs/guides/session-patterns.md` | Debugging patterns from incidents |
-| `docs/guides/update-workflow.md` | Safe deactivate → PUT → activate workflow mutation via REST |
-| `docs/guides/postgres-safety.md` | DDL/connection safety rules |
-| `docs/reference/ralph-wiggum-loops.md` | rp-cli context isolation protocol |
-
-### Documentation Discipline
-- If behavior changes, update the relevant `docs/` file in the same commit
-- Keep `docs/CURRENT-STATE.md` active workstreams section current
+- `nodes/memory/RedisSessionMemory/RedisSessionMemory.node.ts`
+- `nodes/memory/SimpleSessionMemory/SimpleSessionMemory.node.ts`
+- `credentials/`

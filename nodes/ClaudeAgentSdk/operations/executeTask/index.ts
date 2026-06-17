@@ -73,9 +73,9 @@ export async function executeTaskOperation(
 		sdkModule,
 	} = options;
 	const resolvedAuthMethod = authMethod ?? 'apiCredentials';
-	// V4b: the mcpHeaderAuthApi bearer token is injected into MCP HTTP/SSE
-	// requests later (buildMcpServersConfig), but must be redacted from every
-	// sink — resolve the underlying credential value now, at redactor build.
+	// The mcpHeaderAuthApi bearer token is injected into MCP HTTP/SSE requests
+	// later (buildMcpServersConfig), but must be redacted from every sink —
+	// resolve the underlying credential value now, at redactor build.
 	const mcpHeaderAuthValues = await resolveMcpHeaderAuthSecrets(execFunctions, itemIndex);
 	const secretRedactor = createSecretsRedactor(
 		collectSecretsForRedaction({ ...options, mcpHeaderAuthValues }),

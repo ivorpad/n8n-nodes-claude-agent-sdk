@@ -1,6 +1,5 @@
-import type { EngineResponse, IExecuteFunctions } from 'n8n-workflow';
+import { ApplicationError, type EngineResponse, type IExecuteFunctions } from 'n8n-workflow';
 import type { NodeQueryOptions } from '../../../sdk/types';
-import { ApplicationError } from 'n8n-workflow';
 
 import { createApprovalHandler, ApprovalHandler } from '../../../permissions/ApprovalHandler';
 import { parseApprovalConfig } from '../../../permissions/approvalProperties';
@@ -214,8 +213,6 @@ export async function setupInteractiveApprovals(
 
 	if (approvalConfig.enabled && permissionMode === 'default') {
 		approvalHandler = createApprovalHandler(execFunctions, itemIndex, {
-			defaultTimeoutMs: approvalConfig.timeoutSeconds * 1000,
-			defaultOnTimeout: approvalConfig.defaultOnTimeout,
 			approvalMatchMode: approvalConfig.approvalMatchMode,
 		});
 

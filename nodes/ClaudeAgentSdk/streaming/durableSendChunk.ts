@@ -27,7 +27,7 @@ interface DurableSendChunkArgs {
 	/**
 	 * Redacts secret values from each frame payload before it is durably
 	 * persisted (and before it is fanned out). Defaults to a no-op so callers
-	 * that never carry secrets are unaffected (V4: durable stream sink).
+	 * that never carry secrets are unaffected.
 	 */
 	secretRedactor?: SecretsRedactor;
 }

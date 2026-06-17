@@ -26,7 +26,6 @@ function makeApprovalConfig(overrides: Partial<ApprovalConfig> = {}): ApprovalCo
 		specificTools: [],
 		approvalMatchMode: 'tool',
 		timeoutSeconds: 3600,
-		defaultOnTimeout: 'deny',
 		handleAskUserQuestion: true,
 		sdkOwnsWaitResume: true,
 		allowPermissionModeOverride: false,

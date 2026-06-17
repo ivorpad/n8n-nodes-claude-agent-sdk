@@ -160,20 +160,19 @@ function compileOneCondition(cond: FilterCondition): string | undefined {
 	// Quoting a number in a comparison silently fails to match.
 	const rawStr = String(rightVal ?? '');
 	const isNumeric = /^\d+(?:\.\d+)?$/.test(rawStr);
-	// SECURITY (V13): escape backslashes BEFORE single-quotes. A value ending in
-	// a backslash (e.g. `foo\`) would otherwise escape the closing quote, letting
-	// the value break out of the string literal and inject extra clauses into the
-	// agentmesh expression evaluator (`field == 'foo\' or 1==1`). Doubling
-	// backslashes first means a trailing `\` becomes a literal `\\` and the
-	// closing quote stays intact.
+	// Escape backslashes BEFORE single-quotes. A value ending in a backslash
+	// (e.g. `foo\`) would otherwise escape the closing quote, letting the value
+	// break out of the string literal and inject extra clauses into the agentmesh
+	// expression evaluator (`field == 'foo\' or 1==1`). Doubling backslashes first
+	// means a trailing `\` becomes a literal `\\` and the closing quote stays intact.
 	const quotedValue = `'${rawStr.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 	const numericValue = rawStr;
 
-	// SECURITY (V13): comparison operators interpolate the right value UNQUOTED,
-	// so anything non-numeric injects directly into the agentmesh expression
-	// (`amount > 0 or 1==1` widens the rule to always-true). rightValue is
-	// expression-bindable from workflow data — fail closed: only a plain
-	// (optionally negative) decimal number may pass through unquoted.
+	// Comparison operators interpolate the right value UNQUOTED, so anything
+	// non-numeric injects directly into the agentmesh expression (`amount > 0 or
+	// 1==1` widens the rule to always-true). rightValue is expression-bindable
+	// from workflow data — fail closed: only a plain (optionally negative)
+	// decimal number may pass through unquoted.
 	const comparisonNumber = (): string => {
 		const trimmed = rawStr.trim();
 		if (!/^-?\d+(?:\.\d+)?$/.test(trimmed)) {

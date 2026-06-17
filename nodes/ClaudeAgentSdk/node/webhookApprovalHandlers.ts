@@ -59,7 +59,7 @@ function buildApprovalConsumeStatusResponse(status: string): IWebhookResponseDat
 	return message ? { webhookResponse: message } : null;
 }
 
-// The confirmation page (V6) POSTs `approved` as a string form field, while
+// The confirmation page POSTs `approved` as a string form field, while
 // programmatic callers may send a real boolean. Normalize both to a boolean so
 // the explicit POST always consumes; an unrecognised string is treated as
 // "absent" so it cannot silently flip a decision.

@@ -13,7 +13,6 @@ function createApprovalExec() {
 		toolsRequiringApproval: [],
 		approvalMatchMode: 'tool',
 		approvalTimeout: 3600,
-		defaultOnTimeout: 'deny',
 		handleAskUserQuestion: true,
 		allowPermissionModeOverride: false,
 		allowedOverrideModes: [],

@@ -138,7 +138,7 @@ export async function webhook(this: IWebhookFunctions): Promise<IWebhookResponse
 	// provider callback nor an n8n-signature-validated resume (waitForReply) must
 	// not resume the execution. In dispatchAndExit mode the durable companion URL
 	// carries no n8n signature, so an unsigned ?requestId=&approved= query is an
-	// unauthenticated bearer token (V2, HIGH) — reject it.
+	// unauthenticated bearer token.
 	if (!isVerifiedProvider && !isUnsignedQueryDecisionAllowed(this)) {
 		return forbiddenProviderWebhookResponse(this);
 	}
