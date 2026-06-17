@@ -103,7 +103,6 @@ export async function handleGetQuestion(
 			res.send(html);
 			return { noWebhookResponse: true };
 		} catch (error) {
-			// eslint-disable-next-line no-console
 			console.error('[Claude Agent SDK] Failed to render question form:', error);
 			return { webhookResponse: 'Error: Failed to render question form' };
 		}
@@ -129,7 +128,6 @@ export async function handlePostQuestion(
 		try {
 			answers = parseQuestionSubmission(body, questions).answers;
 		} catch (error) {
-			// eslint-disable-next-line no-console
 			console.error('[Claude Agent SDK] Failed to parse form answers:', error);
 			return { webhookResponse: 'Error: Failed to parse form answers' };
 		}

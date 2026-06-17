@@ -223,7 +223,6 @@ export async function createHitlInteractionStoreHandle(args: {
 			pool: handle.pool,
 			workflowId,
 			nodeName,
-			// eslint-disable-next-line @n8n/community-nodes/no-restricted-globals
 			tableName: asNonEmptyString(process.env.CLAUDE_AGENT_HITL_INTERACTIONS_TABLE) ?? DEFAULT_INTERACTIONS_TABLE,
 			secretRedactor: args.secretRedactor,
 		});

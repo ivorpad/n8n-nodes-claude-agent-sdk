@@ -236,7 +236,6 @@ async function syncPendingSessionMetadata(args: {
 				managedAgentSessionId: executionSessionId,
 			});
 		} catch (error) {
-			// eslint-disable-next-line no-console
 			console.warn(
 				`[Claude Agent SDK] Managed session memory touch failed (non-fatal): ${(error as Error).message}`,
 			);
@@ -258,7 +257,6 @@ async function syncPendingSessionMetadata(args: {
 		return;
 	}
 
-	// eslint-disable-next-line no-console
 	console.warn(
 		`[Claude Agent SDK] Session drift before HITL wait: expected ${chatSessionId.slice(0, 8)}... ` +
 			`but execution produced ${executionSessionId.slice(0, 8)}.... ` +

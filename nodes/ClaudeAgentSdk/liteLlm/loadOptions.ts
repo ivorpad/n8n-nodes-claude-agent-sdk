@@ -5,7 +5,7 @@ import { PROVIDER_DEFAULTS } from '../providerConfig';
 const FALLBACK_OPTION: INodePropertyOptions = {
 	name: 'Unable to Load Models - Type Alias Below',
 	value: '',
-	description: 'Use the Manual Model Alias field when the LiteLLM /v1/models endpoint is unavailable.',
+	description: 'Use the Manual Model Alias field when the LiteLLM /v1/models endpoint is unavailable',
 };
 
 interface LiteLlmCredentials {
@@ -58,7 +58,7 @@ function prependStoredAlias(
 		{
 			name: `${storedAlias} (Configured)`,
 			value: storedAlias,
-			description: 'Saved LiteLLM model alias that is not currently listed by /v1/models.',
+			description: 'Saved LiteLLM model alias that is not currently listed by /v1/models',
 		},
 		...options,
 	];

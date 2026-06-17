@@ -5,18 +5,16 @@
 
 import type { IDataObject } from 'n8n-workflow';
 
-import type { TaskItem, TodoItem } from '../../../types';
-import type { NodeQueryOptions, PermissionMode } from '../../../sdk/types';
+import type { TaskItem, TodoItem, JsonSchema } from '../../../types';
+import type { NodeQueryOptions, PermissionMode, NodeStreamMessage } from '../../../sdk/types';
 import type { SecretsRedactor } from '../secretsRedaction';
 import type { SharedExecutionState } from '../../../permissions/sharedExecutionState';
 import { InvocationObservabilityCollector } from '../observability';
 import type { ProcessedMessages } from '../types';
-import type { NodeStreamMessage } from '../../../sdk/types';
 import {
 	STRUCTURED_OUTPUT_RETRY_EXHAUSTED_MESSAGE,
 	type StructuredOutputFailureMode,
 } from '../executeTaskHelpers';
-import type { JsonSchema } from '../../../types';
 
 export function buildTaskResultCore(args: {
 	taskDescription: string;

@@ -1,4 +1,3 @@
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import type { Pool, PoolClient } from 'pg';
 
 import type {

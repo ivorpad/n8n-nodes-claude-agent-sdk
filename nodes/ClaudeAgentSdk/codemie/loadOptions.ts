@@ -17,7 +17,7 @@ const MANUAL_FALLBACK_OPTION: INodePropertyOptions = {
 	name: 'Unable to Load Models - Type Model Below',
 	value: '',
 	description:
-		'Use the Manual Model field when the CodeMie proxy is unavailable or the SSO session has expired.',
+		'Use the Manual Model field when the CodeMie proxy is unavailable or the SSO session has expired',
 };
 
 function readCurrentParameter(ctx: ILoadOptionsFunctions, name: string): string {
@@ -39,7 +39,7 @@ function prependStoredModel(
 		{
 			name: `${storedModel} (Configured)`,
 			value: storedModel,
-			description: 'Saved CodeMie model that is not currently listed by the proxy.',
+			description: 'Saved CodeMie model that is not currently listed by the proxy',
 		},
 		...options,
 	];

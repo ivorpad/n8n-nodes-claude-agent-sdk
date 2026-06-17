@@ -1,8 +1,7 @@
 import type { IExecuteFunctions } from 'n8n-workflow';
-import type { NodeQueryOptions } from '../../../sdk/types';
+import type { NodeQueryOptions, QueryHandle, SdkAdapter } from '../../../sdk/types';
 import { ApplicationError } from 'n8n-workflow';
 
-import type { QueryHandle, SdkAdapter } from '../../../sdk/types';
 import type { StreamingConfig, SendChunkFn, StreamErrorContent } from '../../../streaming/types';
 import type { SharedExecutionState } from '../../../permissions/canUseToolCallback';
 import { getSendChunkFn } from '../../../streaming';

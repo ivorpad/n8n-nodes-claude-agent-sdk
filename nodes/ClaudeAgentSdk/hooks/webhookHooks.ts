@@ -6,14 +6,12 @@
  * - Run a local shell command with the event JSON on stdin
  */
 
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import type {
 	HookCallback,
 	HookCallbackMatcher,
 	HookEvent,
 	HookJSONOutput,
 } from '@anthropic-ai/claude-agent-sdk';
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import { spawn } from 'child_process';
 
 import { buildHookCommandEnv } from './hookEnv';

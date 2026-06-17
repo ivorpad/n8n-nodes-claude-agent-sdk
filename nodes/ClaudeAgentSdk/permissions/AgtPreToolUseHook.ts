@@ -11,7 +11,6 @@
  * reliable enforcement point for AGT.
  */
 
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import type {
 	HookCallback,
 	HookCallbackMatcher,

@@ -22,7 +22,6 @@ const ENV_VAR_PATTERN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
  * Get the list of blocked MCP commands from env or use defaults.
  */
 function getBlockedMcpCommands(): string[] {
-	// eslint-disable-next-line @n8n/community-nodes/no-restricted-globals
 	const envOverride = process.env.N8N_CLAUDE_BLOCKED_MCP_COMMANDS;
 	if (envOverride) {
 		return envOverride.split(',').map((s) => s.trim()).filter(Boolean);

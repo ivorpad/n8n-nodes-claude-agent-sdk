@@ -6,7 +6,6 @@
 
 import type { IExecuteFunctions, INode } from 'n8n-workflow';
 import { ApplicationError } from 'n8n-workflow';
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import * as fs from 'fs';
 
 import { maybeProcessBinaryInputs } from '../binaryInputs';

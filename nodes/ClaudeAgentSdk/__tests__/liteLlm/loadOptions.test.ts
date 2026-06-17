@@ -91,7 +91,7 @@ describe('LiteLLM model load options', () => {
 			{
 				name: 'saved-alias (Configured)',
 				value: 'saved-alias',
-				description: 'Saved LiteLLM model alias that is not currently listed by /v1/models.',
+				description: 'Saved LiteLLM model alias that is not currently listed by /v1/models',
 			},
 			{ name: 'listed-alias', value: 'listed-alias' },
 		]);
@@ -114,19 +114,19 @@ describe('LiteLLM model load options', () => {
 			{
 				name: 'saved-alias (Configured)',
 				value: 'saved-alias',
-				description: 'Saved LiteLLM model alias that is not currently listed by /v1/models.',
+				description: 'Saved LiteLLM model alias that is not currently listed by /v1/models',
 			},
 			{
 				name: 'Unable to Load Models - Type Alias Below',
 				value: '',
-				description: 'Use the Manual Model Alias field when the LiteLLM /v1/models endpoint is unavailable.',
+				description: 'Use the Manual Model Alias field when the LiteLLM /v1/models endpoint is unavailable',
 			},
 		]);
 		await expect(listLiteLlmModelsLoadOption(failedHttpCtx)).resolves.toEqual([
 			{
 				name: 'Unable to Load Models - Type Alias Below',
 				value: '',
-				description: 'Use the Manual Model Alias field when the LiteLLM /v1/models endpoint is unavailable.',
+				description: 'Use the Manual Model Alias field when the LiteLLM /v1/models endpoint is unavailable',
 			},
 		]);
 	});

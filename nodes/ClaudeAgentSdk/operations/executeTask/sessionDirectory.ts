@@ -1,6 +1,4 @@
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import * as fs from 'fs';
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import * as path from 'path';
 
 interface TranscriptDirectoryResolutionInput {

@@ -8,7 +8,6 @@ let sdkModulePromise: Promise<ClaudeAgentSdkModule> | undefined;
  */
 export async function loadClaudeAgentSdkModule(): Promise<ClaudeAgentSdkModule> {
 	if (!sdkModulePromise) {
-		// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 		sdkModulePromise = import('@anthropic-ai/claude-agent-sdk') as Promise<ClaudeAgentSdkModule>;
 	}
 

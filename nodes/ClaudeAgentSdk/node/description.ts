@@ -211,7 +211,6 @@ export const claudeAgentSdkDescription: INodeTypeDescription = {
 			},
 		},
 		{
-			// eslint-disable-next-line n8n-nodes-base/node-class-description-credentials-name-unsuffixed
 			name: 'postgres',
 			required: false,
 			displayOptions: {

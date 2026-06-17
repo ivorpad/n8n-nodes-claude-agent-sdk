@@ -6,12 +6,12 @@ const LITELLM_OPERATION_VALUES = ['executeTask', 'generatePythonSdk'];
 
 export const liteLlmModelProperties: INodeProperties[] = [
 	{
-		displayName: 'Model',
+		displayName: 'Model Name or ID',
 		name: 'liteLlmModel',
 		type: 'options',
 		default: '',
 		description:
-			'LiteLLM model alias loaded from the proxy /v1/models endpoint. The proxy maps this alias to the configured upstream model.',
+			'LiteLLM model alias loaded from the proxy /v1/models endpoint. The proxy maps this alias to the configured upstream model. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		displayOptions: {
 			show: {
 				operation: LITELLM_OPERATION_VALUES,

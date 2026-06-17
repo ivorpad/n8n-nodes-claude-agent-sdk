@@ -6,6 +6,11 @@ import type { INodeProperties } from 'n8n-workflow';
 import { CLAUDE_CODE_PROMPT_SECTION_OPTIONS } from '../claudeCodePromptSections';
 import { DEFAULT_API_PROVIDER, PROVIDER_DEFAULTS } from '../providerConfig';
 
+// Plain identifiers for option defaults: the node-param-default-missing lint rule
+// rejects member-expression defaults (PROVIDER_DEFAULTS.x) but accepts identifiers.
+const OLLAMA_BASE_URL_DEFAULT = PROVIDER_DEFAULTS.ollamaBaseUrl;
+const OLLAMA_MODEL_DEFAULT = PROVIDER_DEFAULTS.ollamaModel;
+
 export const claudeCodePresetProperties: INodeProperties[] = [
 	{
 		displayName: 'Use Claude Code Preset',
@@ -254,6 +259,19 @@ export const additionalOptionsProperty: INodeProperties = {
 				'Whether to store Claude session/config state in a workflow/session-scoped directory inside the working directory',
 		},
 		{
+			displayName: 'LiteLLM Setup',
+			name: 'liteLlmNotice',
+			type: 'notice',
+			default: '',
+			displayOptions: {
+				show: {
+					'/additionalOptions.apiProvider': ['litellm'],
+				},
+			},
+			description:
+				'LiteLLM uses the Claude Agent SDK LiteLLM API credential. Authentication = LiteLLM is recommended so the credential picker and model alias loader are available.',
+		},
+		{
 			displayName: 'Load Project CLAUDE.md',
 			name: 'loadProjectClaudeMd',
 			type: 'boolean',
@@ -267,19 +285,6 @@ export const additionalOptionsProperty: INodeProperties = {
 			type: 'boolean',
 			default: false,
 			description: 'Whether to load settings and skills from ~/.claude/',
-		},
-		{
-			displayName: 'LiteLLM Setup',
-			name: 'liteLlmNotice',
-			type: 'notice',
-			default: '',
-			displayOptions: {
-				show: {
-					'/additionalOptions.apiProvider': ['litellm'],
-				},
-			},
-			description:
-				'LiteLLM uses the Claude Agent SDK LiteLLM API credential. Authentication = LiteLLM is recommended so the credential picker and model alias loader are available.',
 		},
 		{
 			displayName: 'Managed Settings (JSON)',
@@ -318,7 +323,7 @@ export const additionalOptionsProperty: INodeProperties = {
 			displayName: 'Ollama Base URL',
 			name: 'ollamaBaseUrl',
 			type: 'string',
-			default: PROVIDER_DEFAULTS.ollamaBaseUrl,
+			default: OLLAMA_BASE_URL_DEFAULT,
 			placeholder: PROVIDER_DEFAULTS.ollamaBaseUrl,
 			displayOptions: {
 				show: {
@@ -331,7 +336,7 @@ export const additionalOptionsProperty: INodeProperties = {
 			displayName: 'Ollama Model',
 			name: 'ollamaModel',
 			type: 'string',
-			default: PROVIDER_DEFAULTS.ollamaModel,
+			default: OLLAMA_MODEL_DEFAULT,
 			placeholder: PROVIDER_DEFAULTS.ollamaModel,
 			displayOptions: {
 				show: {

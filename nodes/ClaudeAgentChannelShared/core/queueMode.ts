@@ -6,7 +6,6 @@ function normalizeMode(value: string | undefined): string {
 	return value?.trim().toLowerCase() ?? '';
 }
 
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-globals
 export function isN8nQueueMode(env: NodeJS.ProcessEnv = process.env): boolean {
 	return normalizeMode(env.EXECUTIONS_MODE) === 'queue'
 		|| normalizeMode(env.N8N_EXECUTIONS_MODE) === 'queue';

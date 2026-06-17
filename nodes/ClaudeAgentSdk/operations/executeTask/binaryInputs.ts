@@ -5,9 +5,7 @@
  * and provides placeholder replacement for referencing files in task descriptions.
  */
 
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import { basename, isAbsolute, relative, resolve } from 'path';
-// eslint-disable-next-line @n8n/community-nodes/no-restricted-imports
 import { mkdir, writeFile } from 'fs/promises';
 import type { IExecuteFunctions, IBinaryKeyData } from 'n8n-workflow';
 

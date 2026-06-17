@@ -69,9 +69,9 @@ describe('node properties order', () => {
 			'includePartialMessages',  // Include Partial Messages
 			'useSecureEnv',            // Inject Secure Environment Variables
 			'isolateClaudeConfigDir',  // Isolate Claude Config Directory
+			'liteLlmNotice',           // LiteLLM Setup
 			'loadProjectClaudeMd',     // Load Project CLAUDE.md
 			'loadUserSettings',        // Load User Settings
-			'liteLlmNotice',           // LiteLLM Setup
 			'managedSettings',         // Managed Settings (JSON)
 			'maxBudgetUsd',            // Max Budget (USD)
 			'maxBufferSizeMb',         // Max Buffer Size (MB)
