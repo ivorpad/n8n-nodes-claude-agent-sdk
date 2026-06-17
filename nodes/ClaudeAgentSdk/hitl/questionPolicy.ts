@@ -10,7 +10,7 @@ const HITL_FREE_TEXT_OPTION_VALUES = [
 	'__free_text_alt__',
 ] as const;
 
-function normalizeFreeTextOptionValue(value: unknown): string | undefined {
+function normalizeLookupValue(value: unknown): string | undefined {
 	if (typeof value !== 'string') {
 		return undefined;
 	}
@@ -26,7 +26,7 @@ export function isFreeTextQuestion(question: HitlQuestionDefinition): boolean {
 
 	const expected = new Set(HITL_FREE_TEXT_OPTION_VALUES);
 	const values = question.options
-		.map((option) => normalizeFreeTextOptionValue(option.value))
+		.map((option) => normalizeLookupValue(option.value))
 		.filter((value): value is string => Boolean(value));
 
 	return values.length === 2 && values.every((value) => expected.has(value as typeof HITL_FREE_TEXT_OPTION_VALUES[number]));
@@ -42,15 +42,6 @@ function normalizeQuestionResponseAction(
 		return 'resume';
 	}
 	return undefined;
-}
-
-function normalizeLookupValue(value: unknown): string | undefined {
-	if (typeof value !== 'string') {
-		return undefined;
-	}
-
-	const normalized = value.trim().toLowerCase();
-	return normalized.length > 0 ? normalized : undefined;
 }
 
 function splitSelections(raw: string | string[] | undefined, multiSelect: boolean): string[] {
