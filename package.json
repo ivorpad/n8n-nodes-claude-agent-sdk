@@ -26,7 +26,7 @@
 		"lint:fix": "n8n-node lint --fix",
 		"release": "n8n-node release",
 		"prepublishOnly": "n8n-node prerelease",
-		"prepare": "n8n-node build",
+		"prepare": "git config core.hooksPath .githooks || true && n8n-node build",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",

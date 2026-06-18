@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+#
+# Pre-commit hook: scan staged changes for secrets with gitleaks before they
+# enter a commit.
+#
+# Enabled automatically via core.hooksPath (set by the package "prepare"
+# script on `pnpm install`), or manually with:
+#
+#     git config core.hooksPath .githooks
+#
+# CI (.github/workflows/secret-scan.yml) runs the same scan on every push and
+# pull request, so this hook is a fast local backstop — not the only gate.
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+    printf '\033[33m[gitleaks] not installed — skipping local secret scan.\033[0m\n' >&2
+    printf '           Install it so commits are scanned locally:\n' >&2
+    printf '             brew install gitleaks   # macOS\n' >&2
+    printf '             https://github.com/gitleaks/gitleaks#installing\n' >&2
+    printf '           (CI will still scan this change.)\n' >&2
+    exit 0
+fi
+
+if ! gitleaks git --staged --redact --no-banner --verbose; then
+    printf '\033[31m[gitleaks] Potential secret found in staged changes — commit aborted.\033[0m\n' >&2
+    printf '           - Remove the secret and re-stage, then commit again.\n' >&2
+    printf '           - False positive? Add a "gitleaks:allow" comment on the line,\n' >&2
+    printf '             or add the finding fingerprint to .gitleaksignore.\n' >&2
+    exit 1
+fi

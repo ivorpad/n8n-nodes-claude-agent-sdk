@@ -32,6 +32,7 @@ runtime conventions agents must preserve.
 - Prefer static imports and small dedicated adapters over broad utility modules. Runtime-specific loading belongs only in the allowlisted loader modules.
 - Tests use Vitest and should live near the behavior they cover, usually in `__tests__` beside the node or shared runtime being changed.
 - Before release-facing changes, run the narrow relevant tests plus `pnpm run typecheck` when practical.
+- Secret scanning: a gitleaks pre-commit hook (`.githooks/pre-commit`) scans staged changes, and CI (`.github/workflows/secret-scan.yml`) scans full history on every push/PR. `pnpm install` wires the hook automatically via `core.hooksPath`; if it isn't active run `git config core.hooksPath .githooks`, and install the binary with `brew install gitleaks`. Tuning lives in `.gitleaks.toml` — test fixtures hold intentional dummy secrets and are allowlisted there; never add real secrets anywhere, including tests.
 
 ## Hot Paths
 - `nodes/ClaudeAgentSdk/ClaudeAgentSdk.node.ts`

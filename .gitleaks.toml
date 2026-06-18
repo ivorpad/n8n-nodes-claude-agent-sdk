@@ -1,0 +1,29 @@
+# Gitleaks configuration for n8n-nodes-claude-agent-sdk.
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+#
+# IMPORTANT: providing a config file REPLACES gitleaks' built-in rules, so we
+# re-enable the full default rule set below and only layer project-specific
+# allowlisting on top.
+
+title = "n8n-nodes-claude-agent-sdk secret scan"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Allowlist
+# ---------------------------------------------------------------------------
+# This package's test suites deliberately embed DUMMY secrets (e.g.
+# "sk-1234567890abcdef", "api-secret-456") to exercise the node's own
+# secret-redaction and content-filter logic. They are not real credentials.
+#
+# We exempt test paths so those fixtures don't trip the scanner. Everything
+# else — production code, credentials, config, docs, and examples — stays fully
+# scanned, so real secrets are still caught wherever they actually belong.
+[allowlist]
+description = "Ignore intentional dummy secrets in test fixtures"
+paths = [
+    '''(^|/)__tests__/''',
+    '''\.test\.[cm]?[jt]sx?$''',
+    '''\.spec\.[cm]?[jt]sx?$''',
+]

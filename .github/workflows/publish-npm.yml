@@ -57,12 +57,19 @@ jobs:
 
       - name: Publish dry run
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        env:
+          # The package's prepublishOnly hook (n8n-node prerelease) exits 1
+          # unless RELEASE_MODE is set, to steer humans toward `pnpm run release`.
+          # This workflow is the sanctioned publish path, so opt in explicitly.
+          RELEASE_MODE: 'true'
         run: pnpm publish --dry-run --no-git-checks --access public
 
       - name: Publish package
         if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # See note above: opt past the prepublishOnly guard for this publish path.
+          RELEASE_MODE: 'true'
         run: |
           if [ "${{ inputs.provenance }}" = "false" ]; then
             pnpm publish --no-git-checks --access public
