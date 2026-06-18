@@ -281,7 +281,10 @@ describe('setupInteractiveApprovals', () => {
 			answers: { 'field-0': 'Summary' },
 		});
 		expect(result.taskDescription).toBe('Original task');
-		expect(result.executionPrompt).toBe('Continue with the task.');
+		// Question replies queue answers via pendingQuestionResponse and leave the
+		// prompt as the task description — unlike approvals, no neutral executionPrompt
+		// is set (see setupInteractiveApprovals.resume.test.ts "queues answers separately").
+		expect(result.executionPrompt).toBeUndefined();
 	});
 });
 
