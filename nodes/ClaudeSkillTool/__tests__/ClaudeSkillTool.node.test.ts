@@ -37,6 +37,38 @@ function createLoadOptionsContext(opts: { configured?: string; includeUserSkills
 	};
 }
 
+function createRunnerContext(opts: {
+	params?: Record<string, unknown>;
+	startJob?: ReturnType<typeof vi.fn>;
+	omitStartJob?: boolean;
+	runnerStatus?: { available: true } | { available: false; reason?: string };
+}) {
+	const params: Record<string, unknown> = {
+		runViaPythonRunner: true,
+		pythonCode: 'return {"ok": True}',
+		...opts.params,
+	};
+	const ctx: Record<string, unknown> = {
+		getNodeParameter: vi.fn(
+			(name: string, _itemIndex: number, defaultValue: unknown) =>
+				(params[name] as unknown) ?? defaultValue,
+		),
+		getNode: vi.fn().mockReturnValue({ id: 'node-1', name: 'Claude Skill Tool' }),
+		getWorkflow: vi.fn().mockReturnValue({ id: 'wf-1', name: 'My Workflow' }),
+		getMode: vi.fn().mockReturnValue('manual'),
+		continueOnFail: vi.fn().mockReturnValue(false),
+		addInputData: vi.fn().mockReturnValue({ index: 0 }),
+		addOutputData: vi.fn(),
+	};
+	if (!opts.omitStartJob) {
+		ctx.startJob = opts.startJob ?? vi.fn().mockResolvedValue({ ok: true, result: {} });
+	}
+	if (opts.runnerStatus) {
+		ctx.getRunnerStatus = vi.fn().mockReturnValue(opts.runnerStatus);
+	}
+	return ctx;
+}
+
 describe('ClaudeSkillTool node', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -336,5 +368,132 @@ describe('ClaudeSkillTool node', () => {
 		await expect(node.supplyData.call(supplyContext as never, 0)).rejects.toThrow(
 			'No skill selected',
 		);
+	});
+});
+
+describe('ClaudeSkillTool python runner toggle', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	async function buildTool(ctx: Record<string, unknown>) {
+		const node = new ClaudeSkillTool();
+		const supply = await node.supplyData.call(ctx as never, 0);
+		return supply.response as {
+			name: string;
+			description: string;
+			invoke: (input: unknown) => Promise<string>;
+		};
+	}
+
+	it('runs Python on the task runner and returns its result', async () => {
+		const startJob = vi.fn().mockResolvedValue({ ok: true, result: { received: { x: 1 } } });
+		const ctx = createRunnerContext({
+			params: { pythonCode: 'return {"received": _items[0]["json"]}' },
+			startJob,
+			runnerStatus: { available: true },
+		});
+
+		const tool = await buildTool(ctx);
+		expect(tool.name).toBe('python_runner');
+
+		const raw = await tool.invoke({ input: { x: 1 } });
+		expect(JSON.parse(raw)).toEqual({ received: { x: 1 } });
+
+		expect(startJob).toHaveBeenCalledWith(
+			'python',
+			expect.objectContaining({
+				code: 'return {"received": _items[0]["json"]}',
+				nodeMode: 'runOnceForAllItems',
+				workflowMode: 'manual',
+				continueOnFail: false,
+				items: [{ json: { x: 1 } }],
+				nodeId: 'node-1',
+				nodeName: 'Claude Skill Tool',
+				workflowId: 'wf-1',
+				workflowName: 'My Workflow',
+			}),
+			0,
+		);
+		expect(ctx.addInputData).toHaveBeenCalledWith(NodeConnectionTypes.AiTool, [[{
+			json: { query: { input: { x: 1 } } },
+		}]]);
+		expect(ctx.addOutputData).toHaveBeenCalledWith(NodeConnectionTypes.AiTool, 0, [[{
+			json: { response: { received: { x: 1 } } },
+		}]]);
+	});
+
+	it('uses the custom tool name and description when provided', async () => {
+		const ctx = createRunnerContext({
+			params: { toolName: 'calc', toolDescription: 'does math', pythonCode: 'return 1' },
+			runnerStatus: { available: true },
+		});
+		const tool = await buildTool(ctx);
+		expect(tool.name).toBe('calc');
+		expect(tool.description).toBe('does math');
+	});
+
+	it('works when getRunnerStatus is not exposed but startJob succeeds', async () => {
+		const startJob = vi.fn().mockResolvedValue({ ok: true, result: { ok: true } });
+		const ctx = createRunnerContext({ startJob });
+		// no runnerStatus → getRunnerStatus is absent on the context (older wiring)
+		const tool = await buildTool(ctx);
+		const raw = await tool.invoke({});
+		expect(JSON.parse(raw)).toEqual({ ok: true });
+		expect(startJob).toHaveBeenCalledTimes(1);
+	});
+
+	it('fails with a clear error when the runner reports unavailable', async () => {
+		const startJob = vi.fn();
+		const ctx = createRunnerContext({
+			startJob,
+			runnerStatus: { available: false, reason: 'runner offline' },
+		});
+		const tool = await buildTool(ctx);
+		await expect(tool.invoke({})).rejects.toThrow(/not available: runner offline/);
+		expect(startJob).not.toHaveBeenCalled();
+		expect(ctx.addOutputData).not.toHaveBeenCalled();
+	});
+
+	it('fails with a clear error when startJob is not available (pre-2.x n8n)', async () => {
+		const ctx = createRunnerContext({ omitStartJob: true });
+		const tool = await buildTool(ctx);
+		await expect(tool.invoke({})).rejects.toThrow(/does not expose startJob/);
+		expect(ctx.addOutputData).not.toHaveBeenCalled();
+	});
+
+	it('surfaces a sandbox/runtime rejection from the runner', async () => {
+		const startJob = vi.fn().mockResolvedValue({
+			ok: false,
+			error: {
+				message:
+					"Security violations detected — Import of standard library module 'os' is disallowed.",
+			},
+		});
+		const ctx = createRunnerContext({
+			params: { pythonCode: 'import os\nreturn os.getcwd()' },
+			startJob,
+			runnerStatus: { available: true },
+		});
+		const tool = await buildTool(ctx);
+		await expect(tool.invoke({})).rejects.toThrow(
+			/Python runner execution failed: Security violations detected/,
+		);
+		expect(ctx.addOutputData).not.toHaveBeenCalled();
+	});
+
+	it('surfaces a thrown startJob error as a clear runner error', async () => {
+		const startJob = vi.fn().mockRejectedValue(new Error('broker connection refused'));
+		const ctx = createRunnerContext({ startJob, runnerStatus: { available: true } });
+		const tool = await buildTool(ctx);
+		await expect(tool.invoke({})).rejects.toThrow(
+			/could not execute the code: broker connection refused/,
+		);
+	});
+
+	it('fails fast when the toggle is on but no Python code is provided', async () => {
+		const ctx = createRunnerContext({ params: { pythonCode: '   ' } });
+		const node = new ClaudeSkillTool();
+		await expect(node.supplyData.call(ctx as never, 0)).rejects.toThrow(/No Python code provided/);
 	});
 });
