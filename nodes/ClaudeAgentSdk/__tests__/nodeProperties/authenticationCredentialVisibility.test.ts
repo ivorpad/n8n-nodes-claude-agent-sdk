@@ -83,11 +83,13 @@ describe('authentication credential visibility', () => {
 			expect.arrayContaining([
 				'secureEnvVarsApi',
 				'mcpHeaderAuthApi',
-				'postgres',
 				'httpBasicAuth',
 				'httpHeaderAuth',
 				'jwtAuth',
 			]),
+		);
+		expect((claudeAgentSdkDescription.credentials ?? []).map((entry) => entry.name)).not.toContain(
+			'postgres',
 		);
 	});
 
@@ -268,22 +270,7 @@ describe('authentication credential visibility', () => {
 		})).toBe(false);
 	});
 
-	it('shows postgres credential when observability persistence can target postgres', () => {
-		expect(isCredentialVisible('postgres', {})).toBe(false);
-		expect(
-			isCredentialVisible('postgres', {
-				executionSettings: { observabilityPersistenceBackend: 'runDataOnly' },
-			}),
-		).toBe(false);
-		expect(
-			isCredentialVisible('postgres', {
-				executionSettings: { observabilityPersistenceBackend: 'auto' },
-			}),
-		).toBe(true);
-		expect(
-			isCredentialVisible('postgres', {
-				executionSettings: { observabilityPersistenceBackend: 'postgres' },
-			}),
-		).toBe(true);
+	it('does not expose an SDK-level postgres credential for observability persistence', () => {
+		expect(claudeAgentSdkDescription.credentials?.some((entry) => entry.name === 'postgres')).toBe(false);
 	});
 });

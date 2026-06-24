@@ -23,6 +23,7 @@ interface InteractiveApprovalsResult {
 	approvalHandler?: ApprovalHandler;
 	isApprovalResume: boolean;
 	executionPrompt?: string;
+	executionPromptClassification?: string;
 	pendingResumeSessionAt?: string;
 	pendingStreamKey?: string;
 	pendingStreamingRequestId?: string;
@@ -242,6 +243,7 @@ export async function setupInteractiveApprovals(
 		approvalHandler,
 		isApprovalResume: state.isApprovalResume,
 		executionPrompt: state.executionPrompt,
+		executionPromptClassification: state.executionPromptClassification,
 		pendingResumeSessionAt: state.pendingResumeSessionAt,
 		pendingStreamKey: state.pendingStreamKey,
 		pendingStreamingRequestId: state.pendingStreamingRequestId,

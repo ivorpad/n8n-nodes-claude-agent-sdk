@@ -20,7 +20,7 @@ import { validateStructuredOutputValue } from '../../../schema';
 import { injectManagedHitlInteraction } from '../../../managedAgent/hitlBridge';
 import type { ManagedHitlMetadata } from '../../../managedAgent/hitlBridge';
 
-import type { ExecuteTaskResult, ExecutionResult } from '../types';
+import type { ExecuteTaskResult, ExecutionResult, ProcessedMessages } from '../types';
 import type { NodeQueryOptions } from '../../../sdk/types';
 import { processMessages, detectAgentError } from '../messages';
 import { persistSessionMetadata, bindManagedGeneratedFiles } from './sessionPersistence';
@@ -30,6 +30,7 @@ import type { RuntimePendingState } from '../hitlRuntimeState';
 import { waitForPendingInteractions } from './pendingInteractions';
 import { InvocationObservabilityCollector } from '../observability';
 import type { ObservabilityPersistenceStatus } from '../observabilityPostgres';
+import { resolveDurableFullSessionContent } from './fullSessionContent';
 import {
 	STRUCTURED_OUTPUT_RETRY_EXHAUSTED,
 	STRUCTURED_OUTPUT_RETRY_EXHAUSTED_MESSAGE,
@@ -38,12 +39,77 @@ import {
 	type StructuredOutputFailureMode,
 } from '../executeTaskHelpers';
 
+function normalizedNodeName(execFunctions: IExecuteFunctions): string {
+	return execFunctions.getNode().name.replace(/\s+/g, '_') || 'default';
+}
+
+async function persistDurableFullSession(args: {
+	execFunctions: IExecuteFunctions;
+	itemIndex: number;
+	chatSessionId: string;
+	claudeConfigDirectory: string;
+	interactionExecutionId: string;
+	executionSessionId: string | undefined;
+	resumeSessionId: string | undefined;
+	sessionMemory: ISessionMemory | undefined;
+	persistSessionEnabled: boolean;
+	secretRedactor: SecretsRedactor;
+	taskResultCore: IDataObject;
+	processed: ProcessedMessages;
+}): Promise<void> {
+	const {
+		execFunctions,
+		itemIndex,
+		chatSessionId,
+		claudeConfigDirectory,
+		interactionExecutionId,
+		executionSessionId,
+		resumeSessionId,
+		sessionMemory,
+		persistSessionEnabled,
+		secretRedactor,
+		taskResultCore,
+		processed,
+	} = args;
+	const durablePersistence = persistSessionEnabled ? sessionMemory?.durablePersistence : undefined;
+	if (!durablePersistence) {
+		return;
+	}
+
+	const fallbackMessages = Array.isArray(taskResultCore.messages)
+		? taskResultCore.messages
+		: [];
+	const fullSessionContent = resolveDurableFullSessionContent({
+		claudeConfigDirectory,
+		sessionIds: [chatSessionId, executionSessionId, resumeSessionId],
+		fallbackMessages,
+		secretRedactor,
+	});
+
+	await durablePersistence.persistFullSession({
+		context: {
+			workflowId: execFunctions.getWorkflow?.()?.id,
+			nodeName: execFunctions.getNode().name,
+			executionId: interactionExecutionId,
+			itemIndex,
+			chatSessionId: chatSessionId || undefined,
+			sessionId: executionSessionId,
+		},
+		sessionContent: fullSessionContent.sessionContent,
+		messageCount: fullSessionContent.messageCount,
+		totalInputTokens: processed.executionUsage?.usage.inputTokens,
+		totalOutputTokens: processed.executionUsage?.usage.outputTokens,
+		parentNodeName: normalizedNodeName(execFunctions),
+	});
+}
+
 export interface FinalizeExecutionArgs {
 	execFunctions: IExecuteFunctions;
 	itemIndex: number;
 	backendMode: 'localCli' | 'managedAgent';
 	isManagedAgent: boolean;
 	chatSessionId: string;
+	claudeConfigDirectory: string;
 	workingDirectory: string;
 	mappedWorkingDirectory: string | undefined;
 	taskDescription: string;
@@ -91,6 +157,7 @@ export async function finalizeExecution(args: FinalizeExecutionArgs): Promise<Ex
 		backendMode,
 		isManagedAgent,
 		chatSessionId,
+		claudeConfigDirectory,
 		workingDirectory,
 		mappedWorkingDirectory,
 		taskDescription,
@@ -328,6 +395,21 @@ export async function finalizeExecution(args: FinalizeExecutionArgs): Promise<Ex
 						},
 					});
 				}
+				taskResultCore.observability = observabilityCollector.toTaskResultObservability() as unknown as IDataObject;
+				await persistDurableFullSession({
+					execFunctions,
+					itemIndex,
+					chatSessionId,
+					claudeConfigDirectory,
+					interactionExecutionId,
+					executionSessionId,
+					resumeSessionId,
+					sessionMemory,
+					persistSessionEnabled,
+					secretRedactor,
+					taskResultCore,
+					processed,
+				});
 				await flushObservability('paused_hitl');
 				persistObservabilityMetadata();
 				await releaseSessionExecutionLockIfNeeded();
@@ -374,6 +456,21 @@ export async function finalizeExecution(args: FinalizeExecutionArgs): Promise<Ex
 			workingDirectory,
 			mappedWorkingDirectory,
 			observabilityCollector,
+		});
+		taskResultCore.observability = observabilityCollector.toTaskResultObservability() as unknown as IDataObject;
+		await persistDurableFullSession({
+			execFunctions,
+			itemIndex,
+			chatSessionId,
+			claudeConfigDirectory,
+			interactionExecutionId,
+			executionSessionId,
+			resumeSessionId,
+			sessionMemory,
+			persistSessionEnabled,
+			secretRedactor,
+			taskResultCore,
+			processed,
 		});
 
 		// ─────────────────────────────────────────────────────────────────────────────

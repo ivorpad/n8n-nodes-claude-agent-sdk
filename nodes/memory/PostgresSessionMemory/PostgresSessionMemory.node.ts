@@ -9,10 +9,22 @@ import {
 } from 'n8n-workflow';
 
 import { createPostgresConnectionHandle } from '../../shared/postgresConnection';
-import type { N8nPostgresCredential, PostgresConnectionHandle } from '../../shared/postgresConnection';
+import type {
+	N8nPostgresCredential,
+	PostgresConnectionHandle,
+} from '../../shared/postgresConnection';
 import { quoteQualifiedTableName } from '../../shared/postgresIdentifiers';
+import {
+	DEFAULT_OBSERVABILITY_TABLE_NAME,
+	persistInvocationObservabilityToPostgresPool,
+} from '../../ClaudeAgentSdk/operations/executeTask/observabilityPostgres';
+import {
+	deriveFullSessionTableName,
+	deriveSessionEventsTableName,
+	persistFullSessionToPostgresPool,
+} from './fullSessionPersistence';
 
-import type { ISessionMemory } from '../SimpleSessionMemory/SimpleSessionMemory.node';
+import type { ISessionMemory } from '../../ClaudeAgentSdk/types';
 
 const EXECUTION_LOCK_TIMEOUT_MS = 5000;
 const EXECUTION_LOCK_POLL_MS = 100;
@@ -112,10 +124,10 @@ export async function acquireSessionExecutionLock(args: {
 		if (released) return;
 		released = true;
 		try {
-			await client.query(
-				'SELECT pg_advisory_unlock(hashtext($1), hashtext($2))',
-				[workflowId, lockSessionId],
-			);
+			await client.query('SELECT pg_advisory_unlock(hashtext($1), hashtext($2))', [
+				workflowId,
+				lockSessionId,
+			]);
 		} catch (error) {
 			throw new NodeOperationError(
 				node,
@@ -133,10 +145,7 @@ function hasParentNode(
 	ctx: ISupplyDataFunctions,
 ): ctx is ISupplyDataFunctions & { parentNode: { name: string } } {
 	const parentNode = Reflect.get(ctx, 'parentNode');
-	return (
-		isRecord(parentNode)
-		&& typeof parentNode.name === 'string'
-	);
+	return isRecord(parentNode) && typeof parentNode.name === 'string';
 }
 
 export class PostgresSessionMemory implements INodeType {
@@ -146,7 +155,8 @@ export class PostgresSessionMemory implements INodeType {
 		icon: 'file:postgres.svg',
 		group: ['transform'],
 		version: 1,
-		description: 'Tracks session existence and metadata in PostgreSQL for deterministic session resume',
+		description:
+			'Tracks session existence and metadata in PostgreSQL for deterministic session resume',
 		defaults: {
 			name: 'Postgres Session Memory',
 		},
@@ -181,6 +191,8 @@ export class PostgresSessionMemory implements INodeType {
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		const credentials = await this.getCredentials<N8nPostgresCredential>('postgres');
 		const tableName = this.getNodeParameter('tableName', itemIndex, 'claude_sessions') as string;
+		const fullSessionTableName = deriveFullSessionTableName(tableName);
+		const sessionEventsTableName = deriveSessionEventsTableName(tableName);
 		const workflowId = this.getWorkflow().id;
 		// Use the shared SAFE quoting (with .trim() + empty-part rejection); the prior
 		// inline copy here diverged by skipping both guards (finding 1.2).
@@ -222,7 +234,12 @@ export class PostgresSessionMemory implements INodeType {
 			[tableName],
 		);
 		const columnNames = new Set(columns.map((row) => row.attname));
-		if (columnNames.has('artifact') || columnNames.has('checksum') || columnNames.has('size_bytes') || columnNames.has('version')) {
+		if (
+			columnNames.has('artifact') ||
+			columnNames.has('checksum') ||
+			columnNames.has('size_bytes') ||
+			columnNames.has('version')
+		) {
 			throw new NodeOperationError(
 				this.getNode(),
 				`Postgres Session Memory table "${tableName}" looks like a transcript artifact table (contains artifact-related columns). ` +
@@ -233,13 +250,58 @@ export class PostgresSessionMemory implements INodeType {
 
 		// Ensure columns exist for older tables created before metadata was added.
 		// claude_session_id is kept as a legacy column for backward compatibility.
-		await pool.query(`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS claude_session_id VARCHAR(255)`);
-		await pool.query(`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS parent_node_name VARCHAR(255)`);
-		await pool.query(`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS working_directory TEXT`);
-		await pool.query(`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS managed_agent_session_id VARCHAR(255)`);
+		await pool.query(
+			`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS claude_session_id VARCHAR(255)`,
+		);
+		await pool.query(
+			`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS parent_node_name VARCHAR(255)`,
+		);
+		await pool.query(
+			`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS working_directory TEXT`,
+		);
+		await pool.query(
+			`ALTER TABLE ${quotedTableName} ADD COLUMN IF NOT EXISTS managed_agent_session_id VARCHAR(255)`,
+		);
 
 		const sessionMemory: ISessionMemory = {
 			type: 'claude-session-memory',
+			durablePersistence: {
+				backend: 'postgres',
+				observabilityTableName: DEFAULT_OBSERVABILITY_TABLE_NAME,
+				fullSessionTableName,
+				sessionEventsTableName,
+				async persistInvocationObservability({ observability, context, terminalStatus }) {
+					return persistInvocationObservabilityToPostgresPool({
+						pool,
+						observability,
+						context,
+						terminalStatus,
+						tableName: DEFAULT_OBSERVABILITY_TABLE_NAME,
+					});
+				},
+				async persistFullSession({
+					context,
+					messages,
+					sessionContent,
+					messageCount,
+					totalInputTokens,
+					totalOutputTokens,
+					parentNodeName,
+				}) {
+					return persistFullSessionToPostgresPool({
+						pool,
+						tableName: fullSessionTableName,
+						eventTableName: sessionEventsTableName,
+						context,
+						messages,
+						sessionContent,
+						messageCount,
+						totalInputTokens,
+						totalOutputTokens,
+						parentNodeName,
+					});
+				},
+			},
 			async acquireExecutionLock(sessionId: string): Promise<() => Promise<void>> {
 				// Pin a single client for the lock's lifetime so the session-scoped
 				// advisory lock is acquired and released on the SAME backend (V11b).
@@ -258,7 +320,9 @@ export class PostgresSessionMemory implements INodeType {
 				);
 				return (result.rowCount ?? 0) > 0;
 			},
-			async getMetadata(sessionId: string): Promise<{ workingDirectory?: string; managedAgentSessionId?: string } | undefined> {
+			async getMetadata(
+				sessionId: string,
+			): Promise<{ workingDirectory?: string; managedAgentSessionId?: string } | undefined> {
 				const result = await pool.query(
 					`SELECT working_directory, managed_agent_session_id FROM ${quotedTableName} WHERE workflow_id = $1 AND session_id = $2`,
 					[workflowId, sessionId],
@@ -285,7 +349,14 @@ export class PostgresSessionMemory implements INodeType {
 					 VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
 					 ON CONFLICT (workflow_id, session_id)
 					 DO UPDATE SET claude_session_id = $3, parent_node_name = $4, working_directory = $5, managed_agent_session_id = COALESCE($6, ${quotedTableName}.managed_agent_session_id), updated_at = CURRENT_TIMESTAMP`,
-					[workflowId, sessionId, sessionId, nodeNameToStore, metadata?.workingDirectory ?? null, metadata?.managedAgentSessionId ?? null],
+					[
+						workflowId,
+						sessionId,
+						sessionId,
+						nodeNameToStore,
+						metadata?.workingDirectory ?? null,
+						metadata?.managedAgentSessionId ?? null,
+					],
 				);
 			},
 			async forget(sessionId: string): Promise<void> {

@@ -1,18 +1,22 @@
-import { ApplicationError, type IExecuteFunctions } from 'n8n-workflow';
 import type { Pool } from 'pg';
 
 import {
-	createPostgresConnectionHandle,
-	type N8nPostgresCredential,
-} from '../../../shared/postgresConnection';
-import type { InvocationObservabilityCollector } from './observability';
-import {
+	buildSafeIndexName,
 	quoteQualifiedTableName,
 	validateExistingSchema,
 } from '../../../shared/postgresIdentifiers';
+import type {
+	DurablePersistenceResult,
+	DurableSessionPersistenceContext,
+	DurableSessionPersistenceStatus,
+	InvocationObservability,
+} from '../../types';
 
-const DEFAULT_TABLE_NAME = 'claude_invocation_observability_events';
-const DEFAULT_CREDENTIAL_NAME = 'postgres';
+export const DEFAULT_OBSERVABILITY_TABLE_NAME = 'claude_invocation_observability_events';
+
+export type ObservabilityPersistenceStatus = DurableSessionPersistenceStatus;
+export type ObservabilityPersistenceContext = DurableSessionPersistenceContext;
+export type ObservabilityPersistenceResult = DurablePersistenceResult;
 
 const REQUIRED_COLUMNS = [
 	'invocation_id',
@@ -34,46 +38,6 @@ const REQUIRED_COLUMNS = [
 	'event_ts',
 	'payload',
 ] as const;
-
-type ObservabilityPersistenceBackend = 'auto' | 'runDataOnly' | 'postgres';
-
-interface ObservabilityPersistenceConfig {
-	backend: ObservabilityPersistenceBackend;
-	strict: boolean;
-	tableName: string;
-	credentialName: string;
-}
-
-interface ObservabilityPersistenceContext {
-	workflowId?: string | number;
-	nodeName: string;
-	executionId?: string;
-	itemIndex: number;
-	chatSessionId?: string;
-	sessionId?: string;
-	correlationId?: string;
-	requestId?: string;
-}
-
-export type ObservabilityPersistenceStatus = 'completed' | 'paused_hitl' | 'failed';
-
-export interface ObservabilityPersistenceResult {
-	backend: ObservabilityPersistenceBackend;
-	attempted: boolean;
-	persisted: boolean;
-	tableName?: string;
-	rowCount: number;
-	error?: string;
-	invocationId?: string;
-}
-
-interface PersistInvocationArgs {
-	execFunctions: IExecuteFunctions;
-	collector: InvocationObservabilityCollector;
-	context: ObservabilityPersistenceContext;
-	terminalStatus: ObservabilityPersistenceStatus;
-	config: ObservabilityPersistenceConfig;
-}
 
 interface PersistableEventRow {
 	invocationId: string;
@@ -136,28 +100,6 @@ function buildInvocationId(context: ObservabilityPersistenceContext): string {
 	return `inv_${executionId}_${nodeName}_${itemIndex}_${correlationId}_${entropy}`;
 }
 
-export function parseObservabilityPersistenceConfig(
-	executionSettings: Record<string, unknown>,
-): ObservabilityPersistenceConfig {
-	const backend = executionSettings.observabilityPersistenceBackend === 'postgres'
-		? 'postgres'
-		: (executionSettings.observabilityPersistenceBackend === 'runDataOnly'
-			? 'runDataOnly'
-			: 'auto');
-	const strict = executionSettings.observabilityPersistenceStrict === true;
-	const tableName = asNonEmptyString(executionSettings.observabilityPostgresTable)
-		?? DEFAULT_TABLE_NAME;
-	const credentialName = asNonEmptyString(executionSettings.observabilityPostgresCredentialName)
-		?? DEFAULT_CREDENTIAL_NAME;
-
-	return {
-		backend,
-		strict,
-		tableName,
-		credentialName,
-	};
-}
-
 async function ensureSchema(
 	pool: Pool,
 	tableName: string,
@@ -200,12 +142,12 @@ async function ensureSchema(
 		)
 	`);
 
-	await pool.query(`CREATE INDEX IF NOT EXISTS idx_obs_events_workflow_node_ts ON ${queryTableName} (workflow_id, node_name, event_ts DESC)`);
-	await pool.query(`CREATE INDEX IF NOT EXISTS idx_obs_events_execution_item_ts ON ${queryTableName} (execution_id, item_index, event_ts DESC)`);
-	await pool.query(`CREATE INDEX IF NOT EXISTS idx_obs_events_chat_session_ts ON ${queryTableName} (chat_session_id, event_ts DESC)`);
-	await pool.query(`CREATE INDEX IF NOT EXISTS idx_obs_events_event_type_ts ON ${queryTableName} (event_type, event_ts DESC)`);
-	await pool.query(`CREATE INDEX IF NOT EXISTS idx_obs_events_tool_ts ON ${queryTableName} (tool_name, event_ts DESC) WHERE tool_name IS NOT NULL`);
-	await pool.query(`CREATE INDEX IF NOT EXISTS idx_obs_events_request_ts ON ${queryTableName} (request_id, event_ts DESC) WHERE request_id IS NOT NULL`);
+	await pool.query(`CREATE INDEX IF NOT EXISTS ${buildSafeIndexName(tableName, 'workflow_node_ts_idx')} ON ${queryTableName} (workflow_id, node_name, event_ts DESC)`);
+	await pool.query(`CREATE INDEX IF NOT EXISTS ${buildSafeIndexName(tableName, 'execution_item_ts_idx')} ON ${queryTableName} (execution_id, item_index, event_ts DESC)`);
+	await pool.query(`CREATE INDEX IF NOT EXISTS ${buildSafeIndexName(tableName, 'chat_session_ts_idx')} ON ${queryTableName} (chat_session_id, event_ts DESC)`);
+	await pool.query(`CREATE INDEX IF NOT EXISTS ${buildSafeIndexName(tableName, 'event_type_ts_idx')} ON ${queryTableName} (event_type, event_ts DESC)`);
+	await pool.query(`CREATE INDEX IF NOT EXISTS ${buildSafeIndexName(tableName, 'tool_ts_idx')} ON ${queryTableName} (tool_name, event_ts DESC) WHERE tool_name IS NOT NULL`);
+	await pool.query(`CREATE INDEX IF NOT EXISTS ${buildSafeIndexName(tableName, 'request_ts_idx')} ON ${queryTableName} (request_id, event_ts DESC) WHERE request_id IS NOT NULL`);
 
 	return queryTableName;
 }
@@ -221,7 +163,7 @@ function buildEventRows(args: {
 	correlationId: string | null;
 	terminalStatus: ObservabilityPersistenceStatus;
 	contextRequestId?: string;
-	collector: InvocationObservabilityCollector;
+	observability: InvocationObservability;
 }): PersistableEventRow[] {
 	const {
 		invocationId,
@@ -234,11 +176,10 @@ function buildEventRows(args: {
 		correlationId,
 		terminalStatus,
 		contextRequestId,
-		collector,
+		observability,
 	} = args;
-	const snapshot = collector.toTaskResultObservability();
 
-	const rows: PersistableEventRow[] = snapshot.events.map((event) => {
+	const rows: PersistableEventRow[] = observability.events.map((event) => {
 		const payload = isRecord(event.payload) ? event.payload : undefined;
 		const requestId = extractRequestId(payload, contextRequestId);
 		return {
@@ -282,9 +223,9 @@ function buildEventRows(args: {
 		status: terminalStatus,
 		toolName: null,
 		durationMs: null,
-		eventTs: normalizeTimestamp(snapshot.summary.lastTs ?? snapshot.summary.firstTs),
+		eventTs: normalizeTimestamp(observability.summary.lastTs ?? observability.summary.firstTs),
 		payload: {
-			summary: snapshot.summary,
+			summary: observability.summary,
 		},
 	});
 
@@ -353,43 +294,20 @@ async function insertEventRows(
 	return inserted;
 }
 
-export async function persistInvocationObservability(
-	args: PersistInvocationArgs,
-): Promise<ObservabilityPersistenceResult> {
+export async function persistInvocationObservabilityToPostgresPool(args: {
+	pool: Pool;
+	observability: InvocationObservability;
+	context: ObservabilityPersistenceContext;
+	terminalStatus: ObservabilityPersistenceStatus;
+	tableName?: string;
+}): Promise<ObservabilityPersistenceResult> {
 	const {
-		execFunctions,
-		collector,
+		pool,
+		observability,
 		context,
 		terminalStatus,
-		config,
+		tableName = DEFAULT_OBSERVABILITY_TABLE_NAME,
 	} = args;
-
-	if (config.backend === 'runDataOnly') {
-		return {
-			backend: config.backend,
-			attempted: false,
-			persisted: false,
-			rowCount: 0,
-		};
-	}
-
-	let credential: N8nPostgresCredential | undefined;
-	if (config.backend === 'auto') {
-		try {
-			credential = await execFunctions.getCredentials(
-				config.credentialName,
-			) as N8nPostgresCredential;
-		} catch {
-			const message = `Postgres credential "${config.credentialName}" is not configured on Claude Agent SDK node; auto mode will keep run-data-only observability`;
-			return {
-				backend: config.backend,
-				attempted: false,
-				persisted: false,
-				rowCount: 0,
-				error: message,
-			};
-		}
-	}
 
 	const invocationId = buildInvocationId(context);
 	const workflowId = String(context.workflowId ?? '__unknown_workflow__');
@@ -409,60 +327,24 @@ export async function persistInvocationObservability(
 		correlationId,
 		terminalStatus,
 		contextRequestId: asNonEmptyString(context.requestId),
-		collector,
+		observability,
 	});
 
+	const queryTableName = await ensureSchema(pool, tableName);
+	await pool.query('BEGIN');
 	try {
-		if (!credential) {
-			credential = await execFunctions.getCredentials(
-				config.credentialName,
-			) as N8nPostgresCredential;
-		}
-		const handle = await createPostgresConnectionHandle({
-			execFunctions,
-			credential,
-		});
-
-		try {
-			const queryTableName = await ensureSchema(handle.pool, config.tableName);
-			await handle.pool.query('BEGIN');
-			try {
-				const inserted = await insertEventRows(handle.pool, queryTableName, rows);
-				await handle.pool.query('COMMIT');
-				return {
-					backend: config.backend,
-					attempted: true,
-					persisted: true,
-					tableName: config.tableName,
-					rowCount: inserted,
-					invocationId,
-				};
-			} catch (error) {
-				await handle.pool.query('ROLLBACK');
-				throw error;
-			}
-		} finally {
-			await handle.close();
-		}
-	} catch (error) {
-		const message = (error as Error).message;
-		if (config.strict) {
-			throw new ApplicationError(
-				`Failed to persist observability events to Postgres table "${config.tableName}": ${message}`,
-			);
-		}
-
-		console.warn(
-			`[Claude Agent SDK] Observability persistence skipped: ${message}`,
-		);
+		const inserted = await insertEventRows(pool, queryTableName, rows);
+		await pool.query('COMMIT');
 		return {
-			backend: config.backend,
+			backend: 'postgres',
 			attempted: true,
-			persisted: false,
-			tableName: config.tableName,
-			rowCount: 0,
-			error: message,
+			persisted: true,
+			tableName,
+			rowCount: inserted,
 			invocationId,
 		};
+	} catch (error) {
+		await pool.query('ROLLBACK');
+		throw error;
 	}
 }

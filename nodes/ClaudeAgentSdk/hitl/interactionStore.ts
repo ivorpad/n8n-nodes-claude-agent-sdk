@@ -1,4 +1,4 @@
-import type { IExecuteFunctions, IWebhookFunctions } from 'n8n-workflow';
+import { NodeOperationError, type IExecuteFunctions, type IWebhookFunctions } from 'n8n-workflow';
 
 import {
 	createPostgresConnectionHandle,
@@ -23,18 +23,22 @@ const MAX_PENDING_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
 const DEFAULT_INTERACTIONS_TABLE = 'claude_hitl_interactions';
 const fallbackStaticStores = new WeakMap<object, Record<string, HitlInteractionRecord>>();
 
-export type { HitlInteractionRecord, HitlInteractionStore, HitlInteractionStoreHandle } from './interactionStoreTypes';
+export type {
+	HitlInteractionRecord,
+	HitlInteractionStore,
+	HitlInteractionStoreHandle,
+} from './interactionStoreTypes';
 
 function cleanupExpired(store: Record<string, HitlInteractionRecord>): void {
 	const now = Date.now();
 
 	for (const [requestId, record] of Object.entries(store)) {
-		const ageFrom = record.status === 'answered'
-			? (record.answeredAt ?? record.createdAt)
-			: record.createdAt;
-		const maxAge = record.status === 'answered'
-			? DEFAULT_ANSWERED_MAX_AGE_MS
-			: Math.min(record.timeoutMs || DEFAULT_ANSWERED_MAX_AGE_MS, MAX_PENDING_MAX_AGE_MS);
+		const ageFrom =
+			record.status === 'answered' ? (record.answeredAt ?? record.createdAt) : record.createdAt;
+		const maxAge =
+			record.status === 'answered'
+				? DEFAULT_ANSWERED_MAX_AGE_MS
+				: Math.min(record.timeoutMs || DEFAULT_ANSWERED_MAX_AGE_MS, MAX_PENDING_MAX_AGE_MS);
 		if (now - ageFrom > maxAge) {
 			delete store[requestId];
 		}
@@ -81,9 +85,7 @@ function createStaticHitlInteractionStore(ctx: StoreContext): HitlInteractionSto
 			if (existing?.status === 'answered') {
 				return;
 			}
-			store[record.requestId] = existing
-				? { ...existing, ...record, status: 'pending' }
-				: record;
+			store[record.requestId] = existing ? { ...existing, ...record, status: 'pending' } : record;
 		},
 		async getInteraction(requestId) {
 			const store = getStaticStore(ctx);
@@ -157,9 +159,30 @@ function createStaticHitlInteractionStore(ctx: StoreContext): HitlInteractionSto
 }
 
 function asNonEmptyString(value: unknown): string | undefined {
-	return typeof value === 'string' && value.trim().length > 0
-		? value.trim()
-		: undefined;
+	return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function isCredentialTypeNotDeclaredError(error: unknown, credentialName: string): boolean {
+	if (!(error instanceof Error)) return false;
+
+	const message = error.message.toLowerCase();
+	return (
+		message.includes(`credentials of type "${credentialName.toLowerCase()}"`) &&
+		message.includes('does not have')
+	);
+}
+
+function throwUnsupportedSdkPostgresCredential(ctx: StoreContext): never {
+	throw new NodeOperationError(
+		ctx.getNode(),
+		'Claude Agent SDK HITL is misconfigured: remove the Postgres credential from the Claude Agent SDK node.',
+		{
+			description:
+				'The Claude Agent SDK node does not support SDK-level Postgres credentials. ' +
+				'For durable session and observability persistence, connect and configure a Postgres Session Memory node instead. ' +
+				'Leaving a stale Postgres credential on the SDK node can create HITL wait URLs that cannot resume cleanly.',
+		},
+	);
 }
 
 export async function createHitlInteractionStoreHandle(args: {
@@ -180,11 +203,21 @@ export async function createHitlInteractionStoreHandle(args: {
 	} catch {
 		hasCredentialConfigured = false;
 	}
+	if (credentialName === 'postgres' && hasCredentialConfigured) {
+		throwUnsupportedSdkPostgresCredential(args.ctx);
+	}
 
 	let credential: N8nPostgresCredential | undefined;
 	try {
-		credential = await args.ctx.getCredentials(credentialName) as N8nPostgresCredential;
+		credential = (await args.ctx.getCredentials(credentialName)) as N8nPostgresCredential;
 	} catch (error) {
+		if (
+			credentialName === 'postgres' &&
+			hasCredentialConfigured &&
+			isCredentialTypeNotDeclaredError(error, credentialName)
+		) {
+			throwUnsupportedSdkPostgresCredential(args.ctx);
+		}
 		if (hasCredentialConfigured) {
 			throw error;
 		}
@@ -223,7 +256,9 @@ export async function createHitlInteractionStoreHandle(args: {
 			pool: handle.pool,
 			workflowId,
 			nodeName,
-			tableName: asNonEmptyString(process.env.CLAUDE_AGENT_HITL_INTERACTIONS_TABLE) ?? DEFAULT_INTERACTIONS_TABLE,
+			tableName:
+				asNonEmptyString(process.env.CLAUDE_AGENT_HITL_INTERACTIONS_TABLE) ??
+				DEFAULT_INTERACTIONS_TABLE,
 			secretRedactor: args.secretRedactor,
 		});
 		await store.ensureSchema();

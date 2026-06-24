@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { executeTaskCoreProperties, executionSettingsProperty } from '../../nodeProperties/executeTask';
 import { nodeProperties } from '../../nodeProperties';
+import { companionAgentProperty } from '../../nodeProperties/companionAgent';
 import { additionalOptionsProperty } from '../../nodeProperties/additionalOptions';
 import { structuredOutputProperties } from '../../nodeProperties/structuredOutput';
 import { approvalProperties } from '../../permissions/approvalProperties';
 import { permissionsProperties } from '../../permissions/properties';
+import {
+	PHOENIX_COMPANION_BASE_URL,
+	PHOENIX_COMPANION_LOCAL_BASE_URL,
+} from '../../companion/client';
 
 function findProperty(
 	properties: Array<{
@@ -195,11 +200,15 @@ describe('node properties compatibility', () => {
 				'maxObservabilityEvents',
 				'maxObservabilityBytes',
 				'redactObservabilityPayloads',
+				'forkSession',
+				'additionalDirectories',
+			]),
+		);
+		expect(options.map((option) => option.name)).not.toEqual(
+			expect.arrayContaining([
 				'observabilityPersistenceBackend',
 				'observabilityPersistenceStrict',
 				'observabilityPostgresTable',
-				'forkSession',
-				'additionalDirectories',
 			]),
 		);
 
@@ -209,9 +218,6 @@ describe('node properties compatibility', () => {
 		expect(findProperty(options, 'maxObservabilityEvents').default).toBe(500);
 		expect(findProperty(options, 'maxObservabilityBytes').default).toBe(262144);
 		expect(findProperty(options, 'redactObservabilityPayloads').default).toBe(true);
-		expect(findProperty(options, 'observabilityPersistenceBackend').default).toBe('auto');
-		expect(findProperty(options, 'observabilityPersistenceStrict').default).toBe(false);
-		expect(findProperty(options, 'observabilityPostgresTable').default).toBe('claude_invocation_observability_events');
 		expect(findProperty(options, 'forkSession').default).toBe(false);
 		expect(findProperty(options, 'additionalDirectories').default).toBe('');
 	});
@@ -294,6 +300,55 @@ describe('node properties compatibility', () => {
 	it('keeps Claude Code preset controls as top-level local CLI properties', () => {
 		expect(findProperty(nodeProperties, 'useClaudeCodePreset').default).toBe(true);
 		expect(findProperty(nodeProperties, 'claudeCodePromptSections').default).toEqual([]);
+	});
+
+	it('keeps Agent Plane configured by agent ID with a hard-coded base URL', () => {
+		const options = (companionAgentProperty.options ?? []) as Array<{
+			name: string;
+			displayOptions?: unknown;
+		}>;
+		const optionNames = options.map((option) => option.name);
+		const allPropertyNames = nodeProperties.map((property) => property.name);
+		const serializedCompanionProperty = JSON.stringify(companionAgentProperty).toLowerCase();
+
+		expect(PHOENIX_COMPANION_BASE_URL).toBe('http://host.docker.internal:4000');
+		expect(PHOENIX_COMPANION_LOCAL_BASE_URL).toBe('http://127.0.0.1:4000');
+		expect(optionNames).toEqual([
+			'useCompanionAgent',
+			'companionAgentId',
+			'companionLifecycleCallbacks',
+			'companionReadinessMode',
+			'companionRequireSynced',
+		]);
+		expect(allPropertyNames).not.toContain('companionBaseUrl');
+		expect(allPropertyNames).not.toContain('phoenixBaseUrl');
+		expect(serializedCompanionProperty).not.toContain('baseurl');
+		expect(serializedCompanionProperty).not.toContain('n8napikey');
+		expect(options.every((option) => option.displayOptions === undefined)).toBe(true);
+
+		const agentProperty = options.find((option) => option.name === 'companionAgentId') as
+			| {
+					type?: string;
+					default?: unknown;
+					modes?: Array<{ name: string; typeOptions?: { searchListMethod?: string } }>;
+			  }
+			| undefined;
+		expect(agentProperty).toMatchObject({
+			type: 'resourceLocator',
+			default: { mode: 'list', value: '' },
+		});
+		expect(agentProperty?.modes?.map((mode) => mode.name)).toEqual(['list', 'id']);
+		expect(agentProperty?.modes?.[0]).toMatchObject({
+			typeOptions: { searchListMethod: 'listCompanionAgents' },
+		});
+	});
+
+	it('hides manual working directory when Agent Plane owns workspace resolution', () => {
+		expect(findProperty(nodeProperties, 'workingDirectory').displayOptions).toMatchObject({
+			hide: {
+				'/companionAgent.useCompanionAgent': [true],
+			},
+		});
 	});
 
 	it('keeps structured output failure policy parameter stable', () => {

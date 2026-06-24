@@ -121,10 +121,6 @@ export interface ExecutionSettingsObservability {
 	maxObservabilityEvents?: number;
 	maxObservabilityBytes?: number;
 	redactObservabilityPayloads?: boolean;
-	observabilityPersistenceBackend?: 'auto' | 'runDataOnly' | 'postgres';
-	observabilityPersistenceStrict?: boolean;
-	observabilityPostgresTable?: string;
-	observabilityPostgresCredentialName?: string;
 }
 
 export function normalizeObservabilityMode(value: unknown): ObservabilityMode {

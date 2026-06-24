@@ -8,11 +8,11 @@ as a replacement for the others.
 Session Memory nodes track deterministic session existence and metadata for a
 stable `chatSessionId`.
 
-| Node | Storage | Best Fit | Queue-Mode Notes |
-|---|---|---|---|
-| `Simple Session Memory` | Process memory | Local tests, single process demos | Not durable across restart and not shared across workers |
-| `Redis Session Memory` | Redis hash keys | Shared metadata with TTL | Shared, but does not implement the per-session execution lock |
-| `Postgres Session Memory` | Postgres table, default `claude_sessions` | Production and queue mode | Implements per-session advisory locking |
+| Node                      | Storage                                   | Best Fit                          | Queue-Mode Notes                                              |
+| ------------------------- | ----------------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `Simple Session Memory`   | Process memory                            | Local tests, single process demos | Not durable across restart and not shared across workers      |
+| `Redis Session Memory`    | Redis hash keys                           | Shared metadata with TTL          | Shared, but does not implement the per-session execution lock |
+| `Postgres Session Memory` | Postgres table, default `claude_sessions` | Production and queue mode         | Implements per-session advisory locking                       |
 
 For multiple queue workers that may process the same `chatSessionId`, prefer
 Postgres Session Memory. Simple and Redis memory nodes do not implement
@@ -97,29 +97,38 @@ worker restart or process loss is unavailable.
 ## Observability
 
 The SDK node records bounded per-invocation observability data in
-`task_result.observability` by default.
+`task_result.observability` by default. If **Persist Session** is enabled and
+the connected session-memory node is **Postgres Session Memory**, the same
+Postgres connection durably writes invocation observability rows and full
+session JSONL rows. Successful and HITL-paused runs fail instead of returning if
+those durable writes fail.
 
-When Postgres persistence is enabled, observability data is flushed on normal
-completion, HITL pause return, and failure paths. Execution metadata includes
-persistence outcome hints so operators can distinguish persisted, fallback, and
-failed writes.
+The memory table name drives the full-session table name. The first
+`claude_sessions` in the memory table name is replaced with
+`claude_full_sessions`; otherwise the table name is `claude_full_sessions`.
+The same naming rule creates a Platform-style per-event table named
+`claude_session_events`.
+
+`claude_full_sessions` keeps the full JSONL transcript as an archive blob.
+`claude_session_events` stores one row per JSONL/event-log entry with the raw
+event as `raw_event` JSONB plus indexed fields such as `event_type`,
+`event_id`, `thread_id`, `tool_name`, `processed_at`, workflow ID, execution ID,
+and node name. This mirrors the Claude Platform debug timeline more closely
+while keeping the original transcript content available.
+
+Invocation events are written to `claude_invocation_observability_events`.
+Execution metadata includes persistence outcome hints so operators can
+distinguish persisted and failed writes.
 
 Execution Settings:
 
 - **Observability Mode**: `Summary`, `Full`, or `Off`.
 - **Max Observability Events** and **Max Observability Bytes**.
-- **Observability Persistence Backend**:
-  - `Auto`: use Postgres when a Postgres credential is configured on the SDK
-    node; otherwise run data only.
-  - `Run Data Only`: never write observability rows.
-  - `Postgres`: require Postgres persistence subject to strict/fallback mode.
-- **Observability Persistence Strict Mode**: fail the execution if configured
-  Postgres persistence fails.
-- **Observability Postgres Table**: default
-  `claude_invocation_observability_events`.
+- **Redact Observability Payloads**.
 
-The Postgres Session Memory connection does not configure observability by
-itself. Attach a Postgres credential to the `Claude Agent SDK` node.
+There is no separate SDK-node Postgres credential or observability persistence
+backend selector. Connect **Postgres Session Memory** when durable observability
+and full-session persistence are required.
 
 ## Queue Mode
 

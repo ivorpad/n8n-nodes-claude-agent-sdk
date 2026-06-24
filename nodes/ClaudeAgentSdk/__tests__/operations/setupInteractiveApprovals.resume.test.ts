@@ -16,6 +16,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EngineResponse } from 'n8n-workflow';
 
 import { setupInteractiveApprovals } from '../../operations/executeTask/steps/interactiveApprovals';
+import {
+	HITL_APPROVAL_RESUME_PROMPT,
+	HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION,
+} from '../../operations/executeTask/steps/hitlResponseApplication';
 import { createMockExecuteFunctions } from '../helpers/mockExecuteFunctions';
 
 function createExec(overrides: Record<string, unknown> = {}) {
@@ -41,6 +45,7 @@ function createExec(overrides: Record<string, unknown> = {}) {
 		approvalMatchMode: 'tool',
 		approvalTimeout: 3600,
 		handleAskUserQuestion: true,
+		sdkOwnsWaitResume: true,
 		allowPermissionModeOverride: false,
 		allowedOverrideModes: [],
 		...overrides,
@@ -133,7 +138,7 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			expect(queryOptions.forkSession).toBeUndefined();
 		});
 
-		it('preserves canonical taskDescription and emits a neutral executionPrompt on approve', async () => {
+		it('preserves canonical taskDescription and emits a marker executionPrompt on SDK-owned approve resume', async () => {
 			const exec = createExec();
 			exec.getWorkflowStaticData.mockReturnValue({});
 			const restoredTask = 'Approve the vacation request.';
@@ -164,7 +169,8 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			});
 
 			expect(result.taskDescription).toBe(restoredTask);
-			expect(result.executionPrompt).toBe('Continue with the task.');
+			expect(result.executionPrompt).toBe(HITL_APPROVAL_RESUME_PROMPT);
+			expect(result.executionPromptClassification).toBe(HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION);
 			expect(result.executionPrompt).not.toContain('Bash');
 			expect(result.executionPrompt).not.toContain('approved');
 			expect(result.executionPrompt).not.toContain('rejected tool use');
@@ -179,7 +185,7 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			);
 		});
 
-		it('preserves canonical taskDescription and emits the same neutral executionPrompt on deny', async () => {
+		it('preserves canonical taskDescription and emits the same marker executionPrompt on SDK-owned deny resume', async () => {
 			const exec = createExec();
 			exec.getWorkflowStaticData.mockReturnValue({});
 
@@ -208,7 +214,8 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			});
 
 			expect(result.taskDescription).toBe('Original task');
-			expect(result.executionPrompt).toBe('Continue with the task.');
+			expect(result.executionPrompt).toBe(HITL_APPROVAL_RESUME_PROMPT);
+			expect(result.executionPromptClassification).toBe(HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION);
 			expect(result.executionPrompt).not.toContain('denied');
 			expect(result.executionPrompt).not.toContain('Bash');
 			expect(result.pendingApprovalResolution).toEqual(
@@ -224,7 +231,6 @@ describe('setupInteractiveApprovals — resume paths', () => {
 		it('sets resumeSessionAt on denied approval so tool call replays through canUseTool', async () => {
 			const exec = createExec();
 			exec.getWorkflowStaticData.mockReturnValue({});
-
 
 			exec.getInputData.mockReturnValue([
 				{
@@ -253,6 +259,86 @@ describe('setupInteractiveApprovals — resume paths', () => {
 
 			expect(queryOptions.resumeSessionAt).toBe('msg_uuid_should_not_apply');
 		});
+
+		it('does not emit the marker executionPrompt when SDK wait/resume ownership is disabled', async () => {
+			const exec = createExec({ sdkOwnsWaitResume: false });
+			exec.getWorkflowStaticData.mockReturnValue({});
+			exec.getInputData.mockReturnValue([
+				{
+					json: {
+						version: '1.0',
+						type: 'approval_response',
+						requestId: 'req_channel_1',
+						decisionId: 'dec_channel_1',
+						decidedAt: '2026-02-26T12:00:00.000Z',
+						channel: 'slack',
+						approved: true,
+						resumeSessionId: 'sess_1',
+						fingerprint: 'tool:Bash',
+					},
+				},
+			]);
+
+			const result = await setupInteractiveApprovals({
+				execFunctions: exec,
+				itemIndex: 0,
+				permissionMode: 'default',
+				queryOptions: {},
+				taskDescription: 'Original task',
+			});
+
+			expect(result.pendingApprovalResolution).toEqual(
+				expect.objectContaining({
+					kind: 'approval',
+					requestId: 'req_channel_1',
+					approved: true,
+				}),
+			);
+			expect(result.executionPrompt).toBeUndefined();
+			expect(result.executionPromptClassification).toBeUndefined();
+		});
+
+		it('does not emit the marker executionPrompt when an approval response has no active resume', async () => {
+			const exec = createExec();
+			exec.getWorkflowStaticData.mockReturnValue({});
+			exec.getInputData.mockReturnValue([
+				{
+					json: {
+						version: '1.0',
+						type: 'approval_response',
+						requestId: 'req_no_resume_1',
+						decisionId: 'dec_no_resume_1',
+						decidedAt: '2026-02-26T12:00:00.000Z',
+						channel: 'webhook',
+						approved: true,
+						fingerprint: 'tool:Bash',
+					},
+				},
+			]);
+
+			const queryOptions: Record<string, unknown> = {};
+			const result = await setupInteractiveApprovals({
+				execFunctions: exec,
+				itemIndex: 0,
+				permissionMode: 'default',
+				queryOptions,
+				taskDescription: 'Original task',
+				chatSessionId: undefined,
+				resumeSessionId: undefined,
+			});
+
+			expect(queryOptions.resume).toBeUndefined();
+			expect(result.isApprovalResume).toBe(false);
+			expect(result.pendingApprovalResolution).toEqual(
+				expect.objectContaining({
+					kind: 'approval',
+					requestId: 'req_no_resume_1',
+					approved: true,
+				}),
+			);
+			expect(result.executionPrompt).toBeUndefined();
+			expect(result.executionPromptClassification).toBeUndefined();
+		});
 	});
 
 	// ─── Webhook path: question_response ────────────────────────────────
@@ -261,7 +347,8 @@ describe('setupInteractiveApprovals — resume paths', () => {
 		it('preserves canonical taskDescription and queues answers separately', async () => {
 			const exec = createExec();
 			exec.getWorkflowStaticData.mockReturnValue({});
-			const restoredTask = 'Check vacation request VAC-1001 and prepare approval for approver MGR-2001.';
+			const restoredTask =
+				'Check vacation request VAC-1001 and prepare approval for approver MGR-2001.';
 
 			exec.getInputData.mockReturnValue([
 				{
@@ -291,6 +378,7 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			});
 
 			expect(result.executionPrompt).toBeUndefined();
+			expect(result.executionPromptClassification).toBeUndefined();
 			expect(result.taskDescription).toBe(restoredTask);
 			expect(result.isApprovalResume).toBe(true);
 			expect(result.pendingQuestionResponse).toEqual({
@@ -309,8 +397,9 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			const exec = createExec();
 			exec.getWorkflowStaticData.mockReturnValue({});
 
-
-			const previousFps = Buffer.from(JSON.stringify(['tool:Read', 'tool:Glob'])).toString('base64');
+			const previousFps = Buffer.from(JSON.stringify(['tool:Read', 'tool:Glob'])).toString(
+				'base64',
+			);
 
 			exec.getInputData.mockReturnValue([
 				{
@@ -355,7 +444,6 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			});
 			exec.getWorkflowStaticData.mockReturnValue({});
 
-
 			exec.getInputData.mockReturnValue([
 				{
 					json: {
@@ -391,7 +479,6 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			});
 			exec.getWorkflowStaticData.mockReturnValue({});
 
-
 			exec.getInputData.mockReturnValue([
 				{
 					json: {
@@ -425,7 +512,6 @@ describe('setupInteractiveApprovals — resume paths', () => {
 				allowPermissionModeOverride: false,
 			});
 			exec.getWorkflowStaticData.mockReturnValue({});
-
 
 			exec.getInputData.mockReturnValue([
 				{
@@ -461,7 +547,6 @@ describe('setupInteractiveApprovals — resume paths', () => {
 				allowedOverrideModes: ['bypassPermissions'],
 			});
 			exec.getWorkflowStaticData.mockReturnValue({});
-
 
 			exec.getInputData.mockReturnValue([
 				{
@@ -552,7 +637,8 @@ describe('setupInteractiveApprovals — resume paths', () => {
 			expect(result.resumeSessionId).toBe('chat_1');
 			expect(queryOptions.resume).toBe('chat_1');
 			expect(result.taskDescription).toBe('Build it');
-			expect(result.executionPrompt).toBe('Continue with the task.');
+			expect(result.executionPrompt).toBe(HITL_APPROVAL_RESUME_PROMPT);
+			expect(result.executionPromptClassification).toBe(HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION);
 		});
 
 		it('throws when hitlData is missing from EngineResponse', async () => {
@@ -607,18 +693,20 @@ describe('setupInteractiveApprovals — resume paths', () => {
 						data: {
 							data: {
 								ai_tool: [
-									[{
-										json: {
-											version: '1.0',
-											type: 'approval_response',
-											requestId: 'req_engine_2',
-											decisionId: 'dec_engine_2',
-											decidedAt: '2026-02-26T12:01:00.000Z',
-											channel: 'slack',
-											approved: true,
-											resumeSessionId: 'sess_2',
+									[
+										{
+											json: {
+												version: '1.0',
+												type: 'approval_response',
+												requestId: 'req_engine_2',
+												decisionId: 'dec_engine_2',
+												decidedAt: '2026-02-26T12:01:00.000Z',
+												channel: 'slack',
+												approved: true,
+												resumeSessionId: 'sess_2',
+											},
 										},
-									}],
+									],
 								],
 							},
 						},
@@ -738,7 +826,6 @@ describe('setupInteractiveApprovals — resume paths', () => {
 		it('streamingRequestId is captured from resume data', async () => {
 			const exec = createExec();
 			exec.getWorkflowStaticData.mockReturnValue({});
-
 
 			exec.getInputData.mockReturnValue([
 				{

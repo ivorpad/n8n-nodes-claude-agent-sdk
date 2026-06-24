@@ -47,6 +47,7 @@
 			"dist/credentials/ClaudeAgentSdkOpenRouterApi.credentials.js",
 			"dist/credentials/ClaudeAgentSdkLiteLlmApi.credentials.js",
 			"dist/credentials/AlibabaCodingPlanApi.credentials.js",
+			"dist/credentials/ClaudeAgentCompanionApi.credentials.js",
 			"dist/credentials/McpHeaderAuthApi.credentials.js",
 			"dist/credentials/SecureEnvVarsApi.credentials.js",
 			"dist/credentials/WhatsAppBusinessCloudApi.credentials.js",

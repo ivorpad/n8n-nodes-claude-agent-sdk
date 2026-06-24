@@ -53,8 +53,8 @@ function classifyResumeFreshRetry(error: unknown): ResumeFreshRetryHeuristic | n
 	}
 
 	const hasCliFailureSignal =
-		message.includes('exited with code 1')
-		|| message.includes('bad request - please check your parameters');
+		message.includes('exited with code 1') ||
+		message.includes('bad request - please check your parameters');
 	if (!hasCliFailureSignal) {
 		return null;
 	}
@@ -88,8 +88,8 @@ function shouldRetryDeterministicSessionBootstrapAsResume(error: unknown): boole
 
 	const message = error.message.toLowerCase();
 	const hasCliFailureSignal =
-		message.includes('exited with code 1')
-		|| message.includes('bad request - please check your parameters');
+		message.includes('exited with code 1') ||
+		message.includes('bad request - please check your parameters');
 	if (!hasCliFailureSignal) {
 		return false;
 	}
@@ -112,17 +112,16 @@ function classifyResumeRecoveryAction(args: {
 		preventFreshFallbackOnResumeFailure,
 	} = args;
 
-	const isResumeSessionAtLookupFailure = hasResume
-		&& typeof resumeSessionAt === 'string'
-		&& error instanceof Error
-		&& error.message.includes('No message found with message.uuid');
+	const isResumeSessionAtLookupFailure =
+		hasResume &&
+		typeof resumeSessionAt === 'string' &&
+		error instanceof Error &&
+		error.message.includes('No message found with message.uuid');
 	if (isResumeSessionAtLookupFailure) {
 		return { kind: 'retry_plain_resume' };
 	}
 
-	const isResumeFailure = hasResume
-		&& !isApprovalResume
-		&& shouldRetryResumeAsFresh(error);
+	const isResumeFailure = hasResume && !isApprovalResume && shouldRetryResumeAsFresh(error);
 	if (!isResumeFailure) {
 		return { kind: 'rethrow' };
 	}
@@ -136,9 +135,9 @@ function classifyResumeRecoveryAction(args: {
 
 function isEmptyExecutionResult(result: ExecutionResult): boolean {
 	return (
-		result.messages.length === 0
-		&& result.textMessages.length === 0
-		&& Object.keys(result.messageTypeCounts).length === 0
+		result.messages.length === 0 &&
+		result.textMessages.length === 0 &&
+		Object.keys(result.messageTypeCounts).length === 0
 	);
 }
 
@@ -156,6 +155,7 @@ export async function runAgentExecution(args: {
 	streamKey?: string;
 	sharedState: SharedExecutionState;
 	isApprovalResume: boolean;
+	promptClassification?: string;
 	shouldHaltOnPendingInteraction?: () => boolean;
 	preventFreshFallbackOnResumeFailure?: boolean;
 	suppressReplayStreamingMessages?: boolean;
@@ -177,6 +177,7 @@ export async function runAgentExecution(args: {
 		streamKey,
 		sharedState,
 		isApprovalResume,
+		promptClassification,
 		shouldHaltOnPendingInteraction,
 		preventFreshFallbackOnResumeFailure = false,
 		suppressReplayStreamingMessages = false,
@@ -195,6 +196,7 @@ export async function runAgentExecution(args: {
 				hasResume: Boolean(opts.resume),
 				hasSessionId: typeof opts.sessionId === 'string',
 				hasResumeSessionAt: Boolean(opts.resumeSessionAt),
+				promptClassification: promptClassification ?? 'user_task',
 			},
 		});
 		const qr: QueryHandle = adapter.promptOnce(taskDescription, opts);
@@ -235,7 +237,8 @@ export async function runAgentExecution(args: {
 					level: 'error',
 					payload: {
 						attempt,
-						message: streamingError instanceof Error ? streamingError.message : String(streamingError),
+						message:
+							streamingError instanceof Error ? streamingError.message : String(streamingError),
 					},
 				});
 				// Emit NDJSON error line + end sentinel so relay doesn't hang
@@ -245,11 +248,15 @@ export async function runAgentExecution(args: {
 						source: 'worker',
 						itemIndex,
 						correlationId,
-						message: streamingError instanceof Error ? streamingError.message : 'Unknown streaming error',
-						details: streamingError instanceof Error ? {
-							name: streamingError.name,
-							stack: streamingError.stack?.split('\n').slice(0, 5).join('\n'),
-						} : undefined,
+						message:
+							streamingError instanceof Error ? streamingError.message : 'Unknown streaming error',
+						details:
+							streamingError instanceof Error
+								? {
+										name: streamingError.name,
+										stack: streamingError.stack?.split('\n').slice(0, 5).join('\n'),
+									}
+								: undefined,
 					};
 					await sendChunkFn('error', itemIndex, errorPayload);
 					await sendChunkFn('end', itemIndex);
@@ -302,7 +309,7 @@ export async function runAgentExecution(args: {
 			});
 			console.warn(
 				`[Claude Agent SDK] resumeSessionAt lookup failed for session ${String(queryOptions.resume).substring(0, 8)}... — ` +
-				`retrying with plain resume. Original error: ${(error as Error).message}`,
+					`retrying with plain resume. Original error: ${(error as Error).message}`,
 			);
 			delete queryOptions.resumeSessionAt;
 			stderrOutput.length = 0;
@@ -314,7 +321,7 @@ export async function runAgentExecution(args: {
 			if (resumeFreshHeuristic === 'generic_exit_code_1') {
 				console.warn(
 					'[Claude Agent SDK] Resume failed with exit code 1 but no session/resume markers in stderr — ' +
-					'falling back to a fresh session. If this was not a transient CLI quirk, the task context was dropped.',
+						'falling back to a fresh session. If this was not a transient CLI quirk, the task context was dropped.',
 				);
 			}
 			observabilityCollector?.record({
@@ -331,7 +338,7 @@ export async function runAgentExecution(args: {
 			const sid = String(queryOptions.resume);
 			console.warn(
 				`[Claude Agent SDK] Resume failed for session ${sid.substring(0, 8)}... — ` +
-				`starting fresh session. Original error: ${(error as Error).message}`,
+					`starting fresh session. Original error: ${(error as Error).message}`,
 			);
 			delete queryOptions.resume;
 			delete queryOptions.sessionId;
@@ -356,16 +363,15 @@ export async function runAgentExecution(args: {
 	try {
 		executionResult = await executeQuery(queryOptions);
 	} catch (firstError) {
-		const bootstrapSessionId = typeof queryOptions.sessionId === 'string'
-			? queryOptions.sessionId
-			: undefined;
-		const hasResume = typeof queryOptions.resume === 'string'
-			&& (queryOptions.resume as string).length > 0;
+		const bootstrapSessionId =
+			typeof queryOptions.sessionId === 'string' ? queryOptions.sessionId : undefined;
+		const hasResume =
+			typeof queryOptions.resume === 'string' && (queryOptions.resume as string).length > 0;
 
 		if (
-			!hasResume
-			&& bootstrapSessionId
-			&& shouldRetryDeterministicSessionBootstrapAsResume(firstError)
+			!hasResume &&
+			bootstrapSessionId &&
+			shouldRetryDeterministicSessionBootstrapAsResume(firstError)
 		) {
 			observabilityCollector?.record({
 				eventType: 'execution.retry.bootstrap_resume',
@@ -378,7 +384,7 @@ export async function runAgentExecution(args: {
 			});
 			console.warn(
 				`[Claude Agent SDK] Deterministic session bootstrap collided for ${bootstrapSessionId.substring(0, 8)}... ` +
-				'— retrying with resume on the same session ID.',
+					'— retrying with resume on the same session ID.',
 			);
 			queryOptions.resume = bootstrapSessionId;
 			delete queryOptions.sessionId;
@@ -410,7 +416,8 @@ export async function runAgentExecution(args: {
 	}
 
 	if (isEmptyExecutionResult(executionResult)) {
-		const hadResume = typeof queryOptions.resume === 'string' && (queryOptions.resume as string).length > 0;
+		const hadResume =
+			typeof queryOptions.resume === 'string' && (queryOptions.resume as string).length > 0;
 
 		if (hadResume && !isApprovalResume && !preventFreshFallbackOnResumeFailure) {
 			observabilityCollector?.record({
@@ -424,7 +431,7 @@ export async function runAgentExecution(args: {
 			const sid = String(queryOptions.resume);
 			console.warn(
 				`[Claude Agent SDK] Empty message stream for resumed session ${sid.substring(0, 8)}... — ` +
-				'retrying once as fresh session.',
+					'retrying once as fresh session.',
 			);
 			delete queryOptions.resume;
 			delete queryOptions.resumeSessionAt;
@@ -459,7 +466,7 @@ export async function runAgentExecution(args: {
 			});
 			throw new ApplicationError(
 				'Claude Agent SDK returned no messages for this task. ' +
-				'The upstream execution stream was empty after retry; aborting instead of returning a blank task_result.',
+					'The upstream execution stream was empty after retry; aborting instead of returning a blank task_result.',
 			);
 		}
 	}

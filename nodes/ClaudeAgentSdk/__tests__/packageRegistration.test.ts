@@ -31,4 +31,10 @@ describe('n8n package registration', () => {
 			'dist/credentials/ClaudeAgentSdkLiteLlmApi.credentials.js',
 		);
 	});
+
+	it('registers the Agent Plane credential type', () => {
+		expect(packageJson.n8n.credentials).toContain(
+			'dist/credentials/ClaudeAgentCompanionApi.credentials.js',
+		);
+	});
 });

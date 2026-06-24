@@ -131,7 +131,7 @@ export interface N8nMcpEvent {
 // chatSessionId is the canonical Claude session ID for both new runs and resume.
 // =============================================================================
 
-interface ISessionMemoryMetadata {
+export interface ISessionMemoryMetadata {
 	workingDirectory?: string;
 	/**
 	 * Managed Agents session ID (sesn_...).
@@ -141,8 +141,61 @@ interface ISessionMemoryMetadata {
 	managedAgentSessionId?: string;
 }
 
+export type DurableSessionPersistenceStatus = 'completed' | 'paused_hitl' | 'failed';
+
+export interface DurableSessionPersistenceContext {
+	workflowId?: string | number;
+	nodeName: string;
+	executionId?: string;
+	itemIndex: number;
+	chatSessionId?: string;
+	sessionId?: string;
+	correlationId?: string;
+	requestId?: string;
+}
+
+export interface DurablePersistenceResult {
+	backend: 'postgres' | 'runDataOnly';
+	attempted: boolean;
+	persisted: boolean;
+	tableName?: string;
+	eventTableName?: string;
+	rowCount: number;
+	eventRowCount?: number;
+	error?: string;
+	invocationId?: string;
+}
+
+export interface PersistInvocationObservabilityDurableArgs {
+	observability: InvocationObservability;
+	context: DurableSessionPersistenceContext;
+	terminalStatus: DurableSessionPersistenceStatus;
+}
+
+export interface PersistFullSessionDurableArgs {
+	context: DurableSessionPersistenceContext;
+	messages?: unknown[];
+	sessionContent?: string;
+	messageCount: number;
+	totalInputTokens?: number;
+	totalOutputTokens?: number;
+	parentNodeName?: string;
+}
+
+export interface DurableSessionPersistence {
+	backend: 'postgres';
+	observabilityTableName: string;
+	fullSessionTableName: string;
+	sessionEventsTableName?: string;
+	persistInvocationObservability(
+		args: PersistInvocationObservabilityDurableArgs,
+	): Promise<DurablePersistenceResult>;
+	persistFullSession(args: PersistFullSessionDurableArgs): Promise<DurablePersistenceResult>;
+}
+
 export interface ISessionMemory {
 	type: 'claude-session-memory';
+	durablePersistence?: DurableSessionPersistence;
 	/** Returns whether this deterministic chat session has been seen before. */
 	has(chatSessionId: string): Promise<boolean>;
 	getMetadata?(chatSessionId: string): Promise<ISessionMemoryMetadata | undefined>;

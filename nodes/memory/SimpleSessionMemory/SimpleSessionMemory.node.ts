@@ -6,19 +6,9 @@ import {
 	type SupplyData,
 } from 'n8n-workflow';
 
-// Session memory interface — tracks deterministic session existence + metadata.
-export interface ISessionMemory {
-	has(sessionId: string): Promise<boolean>;
-	getMetadata?(sessionId: string): Promise<{ workingDirectory?: string; managedAgentSessionId?: string } | undefined>;
-	forget?(sessionId: string): Promise<void>;
-	acquireExecutionLock?(sessionId: string): Promise<() => Promise<void>>;
-	touch(
-		sessionId: string,
-		parentNodeName?: string,
-		metadata?: { workingDirectory?: string; managedAgentSessionId?: string },
-	): Promise<void>;
-	type: 'claude-session-memory';
-}
+import type { ISessionMemory } from '../../ClaudeAgentSdk/types';
+
+export type { ISessionMemory } from '../../ClaudeAgentSdk/types';
 
 // Singleton to persist sessions across workflow executions
 type SessionEntry = {

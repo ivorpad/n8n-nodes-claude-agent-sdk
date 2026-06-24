@@ -76,6 +76,9 @@ export const executeTaskCoreProperties: INodeProperties[] = [
 				operation: executeOrScriptOperation,
 				backendMode: ['localCli'],
 			},
+			hide: {
+				'/companionAgent.useCompanionAgent': [true],
+			},
 		},
 	},
 	{
@@ -339,54 +342,6 @@ export const executionSettingsProperty: INodeProperties = {
 			],
 			default: 'summary',
 			description: 'How much per-invocation observability data to persist in task_result.observability',
-		},
-		{
-			displayName: 'Observability Persistence Backend',
-			name: 'observabilityPersistenceBackend',
-			type: 'options',
-			options: [
-				{
-					name: 'Auto',
-					value: 'auto',
-					description: 'Use Postgres automatically when the Postgres credential is configured; otherwise keep run-data only',
-				},
-				{
-					name: 'Run Data Only',
-					value: 'runDataOnly',
-					description: 'Store observability in task_result only',
-				},
-				{
-					name: 'Postgres',
-					value: 'postgres',
-					description: 'Persist observability events in Postgres for cross-execution querying',
-				},
-			],
-			default: 'auto',
-			description: 'Where invocation observability is durably persisted',
-		},
-		{
-			displayName: 'Observability Persistence Strict Mode',
-			name: 'observabilityPersistenceStrict',
-			type: 'boolean',
-			default: false,
-			displayOptions: {
-				show: {
-					observabilityPersistenceBackend: ['auto', 'postgres'],
-				},
-			},
-			description: 'Whether to fail execution if observability persistence to Postgres fails',
-		},
-		{
-			displayName: 'Observability Postgres Table',
-			name: 'observabilityPostgresTable',
-			type: 'string',
-			default: 'claude_invocation_observability_events',
-			displayOptions: {
-				show: {
-					observabilityPersistenceBackend: ['auto', 'postgres'],
-				},
-			},
-			description: 'Postgres table for invocation observability events (created automatically if missing)',
 		},
 		{
 			displayName: 'Redact Observability Payloads',

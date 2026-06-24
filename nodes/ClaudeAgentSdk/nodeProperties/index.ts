@@ -7,6 +7,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 import { authenticationProperty } from './authentication';
+import { companionAgentProperties } from './companionAgent';
 import { localCliOnly, gateLocalCli, operationOnly } from './backendModeHelper';
 import { managedAgentProperties } from './managedAgent';
 import { managedAgentLifecycleProperties } from './managedAgentLifecycle';
@@ -35,6 +36,9 @@ export const nodeProperties: INodeProperties[] = [
 
 	// Execute Task operation (core fields)
 	...executeTaskCoreProperties,
+
+	// Optional Agent Plane working-directory resolution
+	...companionAgentProperties,
 
 	// Managed Agent settings (only visible when backendMode = managedAgent)
 	...managedAgentProperties,

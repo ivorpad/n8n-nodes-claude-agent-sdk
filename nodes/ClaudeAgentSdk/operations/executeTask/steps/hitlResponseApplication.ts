@@ -11,11 +11,17 @@ import { applyResumeQueryOptions } from './resumeQueryOptions';
 type ApprovalConfig = ReturnType<typeof parseApprovalConfig>;
 type BackendMode = 'localCli' | 'managedAgent';
 
+export const HITL_APPROVAL_RESUME_PROMPT_MARKER = '<HITL_APPROVAL_RESUME>' as const;
+export const HITL_APPROVAL_RESUME_PROMPT = HITL_APPROVAL_RESUME_PROMPT_MARKER;
+export const HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION =
+	'control_plane_hitl_approval_resume' as const;
+
 export interface HitlResponseState {
 	taskDescription: string;
 	resumeSessionId?: string;
 	isApprovalResume: boolean;
 	executionPrompt?: string;
+	executionPromptClassification?: typeof HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION;
 	pendingResumeSessionAt?: string;
 	pendingStreamKey?: string;
 	pendingStreamingRequestId?: string;
@@ -149,6 +155,22 @@ function recordApprovalApplied(
 	});
 }
 
+function isSdkOwnedPauseForApprovalResume(args: {
+	approvalConfig: ApprovalConfig;
+	backendMode: BackendMode;
+	queryOptions: NodeQueryOptions;
+	state: HitlResponseState;
+}): boolean {
+	return (
+		args.state.isApprovalResume &&
+		typeof args.queryOptions.resume === 'string' &&
+		args.queryOptions.resume.length > 0 &&
+		args.approvalConfig.enabled &&
+		args.approvalConfig.mode === 'pauseForApproval' &&
+		(args.backendMode === 'managedAgent' || args.approvalConfig.sdkOwnsWaitResume !== false)
+	);
+}
+
 function applyPermissionModeOverride(args: {
 	hitlResponse: HitlApprovalResponseEnvelope;
 	approvalConfig: ApprovalConfig;
@@ -175,6 +197,7 @@ function applyApprovalHitlResponse(args: {
 	state: HitlResponseState;
 	queryOptions: NodeQueryOptions;
 	approvalConfig: ApprovalConfig;
+	backendMode: BackendMode;
 	approvalHandler?: ApprovalHandler;
 	operatorPolicy?: OperatorPolicy;
 	observabilityCollector?: InvocationObservabilityCollector;
@@ -189,7 +212,26 @@ function applyApprovalHitlResponse(args: {
 	// Approval replay is driven by pendingApprovalResolution during canUseTool.
 	// Keep the model-facing resume prompt neutral so Claude does not need to
 	// reinterpret prior STOP/denial text from conversation history.
-	state.executionPrompt = 'Continue with the task.';
+	if (
+		isSdkOwnedPauseForApprovalResume({
+			approvalConfig: args.approvalConfig,
+			backendMode: args.backendMode,
+			queryOptions,
+			state,
+		})
+	) {
+		state.executionPrompt = HITL_APPROVAL_RESUME_PROMPT;
+		state.executionPromptClassification = HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION;
+		args.observabilityCollector?.record({
+			eventType: 'hitl.approval.resume_prompt',
+			status: 'control_plane',
+			payload: {
+				requestId: hitlResponse.requestId,
+				inputClassification: HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION,
+				promptMarker: HITL_APPROVAL_RESUME_PROMPT_MARKER,
+			},
+		});
+	}
 	state.pendingApprovalResolution = {
 		kind: 'approval',
 		requestId: hitlResponse.requestId,

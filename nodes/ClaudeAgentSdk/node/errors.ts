@@ -36,6 +36,13 @@ export function getErrorMessage(error: unknown): string {
 		if (nodeError.code === 'EACCES') {
 			return `Permission denied: ${nodeError.path || 'unknown path'}`;
 		}
+		if (nodeError.code === 'ENOEXEC') {
+			return (
+				'Claude CLI executable is not runnable by the operating system. ' +
+				'Set the Claude API credential executable path to a real Claude Code binary, ' +
+				'or remove the override so n8n can use `claude` from PATH.'
+			);
+		}
 		if (nodeError.code === 'ECONNREFUSED') {
 			const host = (error.message?.match(/(\w+:\/\/[\w.-]+:\d+)/) || [])[1];
 			if (host?.includes('localhost:11434') || host?.includes('127.0.0.1:11434')) {
@@ -200,6 +207,13 @@ export function getErrorDescription(error: unknown): string | undefined {
 				return 'Start Ollama with "ollama serve" and ensure it\'s accessible. In Docker environments, configure the Ollama Base URL to use host.docker.internal:11434.';
 			}
 			return 'Verify the API endpoint is accessible and the service is running.';
+		}
+
+		if (nodeError.code === 'ENOEXEC') {
+			return (
+				'The configured Claude CLI path exists but is not an executable binary or shebang script. ' +
+				'Use `/Users/ivor/.local/bin/claude` locally, or leave the executable path blank so PATH resolution can find Claude Code.'
+			);
 		}
 
 		if (isOllamaVersionError(error.message)) {

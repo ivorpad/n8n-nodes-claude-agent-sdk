@@ -4,6 +4,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 import { nodeProperties } from '../nodeProperties';
 import { localCliOnly, operationOnly } from '../nodeProperties/backendModeHelper';
 import { isCodeMieAvailable } from '../codemie/companion';
+import { isAgentPlaneEnabled } from '../featureFlags';
 import { permissionsProperties } from '../permissions/properties';
 import { streamingConfigProperties } from '../streaming/properties';
 import { sandboxProperties } from '../sandbox/properties';
@@ -187,6 +188,20 @@ export const claudeAgentSdkDescription: INodeTypeDescription = {
 					}),
 				]
 			: []),
+		...(isAgentPlaneEnabled()
+			? [
+					{
+						name: 'claudeAgentCompanionApi',
+						required: false,
+						displayOptions: {
+							show: {
+								'/operation': ['executeTask'],
+								'/backendMode': ['localCli'],
+							},
+						},
+					},
+				]
+			: []),
 		{
 			name: 'secureEnvVarsApi',
 			required: false,
@@ -207,15 +222,6 @@ export const claudeAgentSdkDescription: INodeTypeDescription = {
 			displayOptions: {
 				show: {
 					'/enableMcpServers': [true],
-				},
-			},
-		},
-		{
-			name: 'postgres',
-			required: false,
-			displayOptions: {
-				show: {
-					'/executionSettings.observabilityPersistenceBackend': ['auto', 'postgres'],
 				},
 			},
 		},

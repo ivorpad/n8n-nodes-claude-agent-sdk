@@ -41,9 +41,6 @@ describe('node properties order', () => {
 			'maxObservabilityEvents',
 			'maxTurns',
 			'observabilityMode',
-			'observabilityPersistenceBackend',
-			'observabilityPersistenceStrict',
-			'observabilityPostgresTable',
 			'redactObservabilityPayloads',
 			'treatAgentErrorsAsWorkflowErrors',
 		]);

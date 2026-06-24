@@ -14,6 +14,14 @@ import type { IExecuteFunctions, EngineRequest } from 'n8n-workflow';
 import { ApplicationError } from 'n8n-workflow';
 
 import {
+	completionPayloadFromTaskResult,
+	ensureCompanionAgentReady,
+	parseCompanionAgentConfig,
+	recordCompanionRunCompleted,
+	recordCompanionRunFailed,
+	recordCompanionRunStarted,
+} from '../../companion/client';
+import {
 	parseApprovalConfig,
 	parseOperatorPolicyFromEnv,
 	applyOperatorSandboxPolicy,
@@ -46,7 +54,11 @@ import {
 	wireManagedResumeToolResult,
 } from './steps/sessionResolve';
 import { prepareCoreParams } from './steps/prepareCore';
-import { createSecretsRedactor, collectSecretsForRedaction, resolveMcpHeaderAuthSecrets } from './secretsRedaction';
+import {
+	createSecretsRedactor,
+	collectSecretsForRedaction,
+	resolveMcpHeaderAuthSecrets,
+} from './secretsRedaction';
 import { resolveClaudeConfigDirectory } from './sessionDirectory';
 import { createRuntimePendingState } from './hitlRuntimeState';
 
@@ -57,6 +69,20 @@ import {
 	setObservabilityMetadata,
 } from './executeTaskHelpers';
 
+function getExecutionId(execFunctions: IExecuteFunctions): string | undefined {
+	const maybeGetExecutionId = (execFunctions as { getExecutionId?: () => string | undefined })
+		.getExecutionId;
+	return typeof maybeGetExecutionId === 'function'
+		? maybeGetExecutionId.call(execFunctions)
+		: undefined;
+}
+
+function isCompletedTaskResult(
+	result: ExecuteTaskResult | EngineRequest,
+): result is ExecuteTaskResult {
+	return 'returnData' in result && result.returnData.json.type === 'task_result';
+}
+
 /**
  * Execute the executeTask operation
  */
@@ -65,13 +91,7 @@ export async function executeTaskOperation(
 	itemIndex: number,
 	options: ExecuteTaskOptions,
 ): Promise<ExecuteTaskResult | EngineRequest> {
-	const {
-		adapter,
-		authMethod,
-		backendMode = 'localCli',
-		secureEnv,
-		sdkModule,
-	} = options;
+	const { adapter, authMethod, backendMode = 'localCli', secureEnv, sdkModule } = options;
 	const resolvedAuthMethod = authMethod ?? 'apiCredentials';
 	// The mcpHeaderAuthApi bearer token is injected into MCP HTTP/SSE requests
 	// later (buildMcpServersConfig), but must be redacted from every sink —
@@ -85,22 +105,43 @@ export async function executeTaskOperation(
 		(name, idx, def) => execFunctions.getNodeParameter(name, idx, def),
 		itemIndex,
 	);
-
+	const companionConfig =
+		backendMode === 'localCli'
+			? parseCompanionAgentConfig(execFunctions, itemIndex)
+			: {
+					enabled: false,
+					agentId: '',
+					readinessMode: 'checkOnly' as const,
+					requireSynced: true,
+					lifecycleCallbacks: true,
+				};
+	const companionExecutionId = getExecutionId(execFunctions);
+	const companionContext = await ensureCompanionAgentReady({
+		execFunctions,
+		itemIndex,
+		config: companionConfig,
+		chatSessionId: execFunctions.getNodeParameter('chatSessionId', itemIndex, '') as string,
+		workflowId: execFunctions.getWorkflow?.()?.id,
+		executionId: companionExecutionId,
+		nodeName: execFunctions.getNode().name,
+	});
+	let companionRunId: string | undefined;
 
 	// ─────────────────────────────────────────────────────────────────────────────
 	// 1. Validate and extract core parameters (+ binary-input preprocessing)
 	// ─────────────────────────────────────────────────────────────────────────────
 
-	const core = await prepareCoreParams({ execFunctions, itemIndex, backendMode, secretRedactor });
-	const {
-		chatSessionId,
-		workingDirectory,
-		node,
-		workflowId,
-		observabilityPersistenceConfig,
-		observabilityCollector,
-	} = core;
+	const core = await prepareCoreParams({
+		execFunctions,
+		itemIndex,
+		backendMode,
+		secretRedactor,
+		companionWorkingDirectory: companionContext?.workingDirectory,
+	});
+	const { chatSessionId, workingDirectory, node, workflowId, observabilityCollector } = core;
 	let taskDescription = core.taskDescription;
+	const companionWorkingDirectory = workingDirectory;
+	const companionChatSessionId = chatSessionId;
 
 	// ─────────────────────────────────────────────────────────────────────────────
 	// 2. Session memory handling
@@ -111,12 +152,18 @@ export async function executeTaskOperation(
 	// Session memory tracks deterministic session existence + metadata.
 	// chatSessionId is the canonical Claude session ID for both new runs and resume.
 	// When persistSession is false, skip session memory entirely — sessions cannot be resumed.
-	const earlyAdditionalOptions = execFunctions.getNodeParameter('additionalOptions', itemIndex, {}) as {
+	const earlyAdditionalOptions = execFunctions.getNodeParameter(
+		'additionalOptions',
+		itemIndex,
+		{},
+	) as {
 		persistSession?: boolean;
 		claudeConfigDir?: string;
 	};
 	const persistSessionEnabled = earlyAdditionalOptions.persistSession !== false;
-	const claudeConfigDirectory = resolveClaudeConfigDirectory(earlyAdditionalOptions.claudeConfigDir);
+	const claudeConfigDirectory = resolveClaudeConfigDirectory(
+		earlyAdditionalOptions.claudeConfigDir,
+	);
 	let resumeSessionId: string | undefined;
 	let managedAgentResumeSessionId: string | undefined;
 	const isManagedAgent = backendMode === 'managedAgent';
@@ -128,13 +175,13 @@ export async function executeTaskOperation(
 	let durableStreamKey: string | undefined;
 
 	const lifecycle = createExecutionLifecycle({
-		execFunctions,
 		itemIndex,
 		workflowId,
 		nodeName: node.name,
 		chatSessionId,
 		observabilityCollector,
-		observabilityPersistenceConfig,
+		sessionMemory,
+		persistSessionEnabled,
 		getDurableStreamKey: () => durableStreamKey,
 	});
 	const {
@@ -158,7 +205,6 @@ export async function executeTaskOperation(
 		managedAgentResumeSessionId = sessionResolution.managedAgentResumeSessionId;
 		mappedWorkingDirectory = sessionResolution.mappedWorkingDirectory;
 		lifecycle.state.releaseSessionExecutionLock = sessionResolution.releaseSessionExecutionLock;
-
 
 		// ─────────────────────────────────────────────────────────────────────────────
 		// 3. Build subagents
@@ -223,7 +269,7 @@ export async function executeTaskOperation(
 		if (!persistSessionEnabled && preflightApprovalConfig.enabled) {
 			throw new ApplicationError(
 				'Interactive Approvals (HITL) requires session persistence. ' +
-				'Either enable "Persist Session" in Additional Options, or disable Interactive Approvals.',
+					'Either enable "Persist Session" in Additional Options, or disable Interactive Approvals.',
 			);
 		}
 
@@ -275,6 +321,7 @@ export async function executeTaskOperation(
 			approvalHandler,
 			isApprovalResume,
 			executionPrompt,
+			executionPromptClassification,
 			pendingStreamKey,
 			pendingStreamingRequestId,
 			pendingQuestionResponse,
@@ -298,10 +345,12 @@ export async function executeTaskOperation(
 		taskDescription = resolvedTaskDescription;
 		resumeSessionId = resolvedResumeSessionId;
 		const promptForExecution = executionPrompt ?? taskDescription;
-		durableStreamKey = pendingStreamKey || buildDurableStreamKey({
-			executionId: interactionExecutionId,
-			itemIndex,
-		});
+		durableStreamKey =
+			pendingStreamKey ||
+			buildDurableStreamKey({
+				executionId: interactionExecutionId,
+				itemIndex,
+			});
 
 		wireManagedResumeToolResult({
 			isManagedAgent,
@@ -400,6 +449,22 @@ export async function executeTaskOperation(
 		// 11. Execute the agent task
 		// ─────────────────────────────────────────────────────────────────────────────
 
+		companionRunId = await recordCompanionRunStarted({
+			execFunctions,
+			itemIndex,
+			config: companionConfig,
+			payload: {
+				agentId: companionConfig.agentId,
+				workspaceId: companionContext?.workspaceId,
+				workflowId,
+				executionId: executionId || companionExecutionId,
+				nodeName: node.name,
+				chatSessionId,
+				workingDirectory,
+				task: promptForExecution,
+			},
+		});
+
 		const executionResult = await runAgentExecution({
 			execFunctions,
 			itemIndex,
@@ -414,6 +479,7 @@ export async function executeTaskOperation(
 			streamKey: durableStreamKey,
 			sharedState,
 			isApprovalResume,
+			promptClassification: executionPromptClassification,
 			shouldHaltOnPendingInteraction: () =>
 				runtimePendingState.getPendingForExecution(interactionExecutionId).length > 0,
 			preventFreshFallbackOnResumeFailure: isApprovalResume,
@@ -422,13 +488,13 @@ export async function executeTaskOperation(
 			secretRedactor,
 		});
 
-
-		return await finalizeExecution({
+		const finalized = await finalizeExecution({
 			execFunctions,
 			itemIndex,
 			backendMode,
 			isManagedAgent,
 			chatSessionId,
+			claudeConfigDirectory,
 			workingDirectory,
 			mappedWorkingDirectory,
 			taskDescription,
@@ -462,12 +528,51 @@ export async function executeTaskOperation(
 				lifecycle.state.executionSessionIdForPersistence = sessionId;
 			},
 			flushObservability,
-			persistObservabilityMetadata: () => setObservabilityMetadata(execFunctions, buildObservabilityMetadata()),
+			persistObservabilityMetadata: () =>
+				setObservabilityMetadata(execFunctions, buildObservabilityMetadata()),
 			releaseSessionExecutionLockIfNeeded,
 			closeHitlInteractionStoreIfNeeded,
 			closeDurableStreamStoreIfNeeded,
 		});
+
+		if (isCompletedTaskResult(finalized)) {
+			await recordCompanionRunCompleted({
+				execFunctions,
+				itemIndex,
+				config: companionConfig,
+				runId: companionRunId,
+				payload: completionPayloadFromTaskResult({
+					agentId: companionConfig.agentId,
+					chatSessionId,
+					workingDirectory,
+					resultJson: finalized.returnData.json,
+				}),
+			}).catch((callbackError) => {
+				console.warn(
+					`[Claude Agent SDK] Failed to notify Agent Plane about completed run: ${(callbackError as Error).message}`,
+				);
+			});
+		}
+
+		return finalized;
 	} catch (error) {
+		await recordCompanionRunFailed({
+			execFunctions,
+			itemIndex,
+			config: companionConfig,
+			runId: companionRunId,
+			payload: {
+				agentId: companionConfig.agentId,
+				error: error instanceof Error ? error.message : String(error),
+				chatSessionId: companionChatSessionId,
+				workingDirectory: companionWorkingDirectory,
+			},
+		}).catch((callbackError) => {
+			console.warn(
+				`[Claude Agent SDK] Failed to notify Agent Plane about failed run: ${(callbackError as Error).message}`,
+			);
+		});
+
 		if (sharedState.n8nMcpEvents?.length) {
 			observabilityCollector.recordN8nMcpEvents(sharedState.n8nMcpEvents);
 		}

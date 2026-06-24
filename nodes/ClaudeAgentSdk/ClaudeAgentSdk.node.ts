@@ -11,6 +11,7 @@ import type {
 	EngineResponse,
 	IExecuteFunctions,
 	ILoadOptionsFunctions,
+	INodeListSearchResult,
 	INodeExecutionData,
 	INodePropertyOptions,
 	IWebhookFunctions,
@@ -22,6 +23,7 @@ import {
 	listManagedAgentsLoadOption,
 	listManagedEnvironmentsLoadOption,
 } from './managedAgent';
+import { listCompanionAgentsLoadOption, listCompanionAgentsSearch } from './companion/loadOptions';
 import { listLiteLlmModelsLoadOption } from './liteLlm/loadOptions';
 import { listCodeMieModelsLoadOption } from './codemie/loadOptions';
 import { claudeAgentSdkDescription } from './node/description';
@@ -91,12 +93,24 @@ export class ClaudeAgentSdk extends Node {
 				return listManagedEnvironmentsLoadOption(this);
 			},
 
+			async listCompanionAgents(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				return listCompanionAgentsLoadOption(this);
+			},
+
 			async listLiteLlmModels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				return listLiteLlmModelsLoadOption(this);
 			},
 
 			async listCodeMieModels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				return listCodeMieModelsLoadOption(this);
+			},
+		},
+		listSearch: {
+			async listCompanionAgents(
+				this: ILoadOptionsFunctions,
+				filter?: string,
+			): Promise<INodeListSearchResult> {
+				return listCompanionAgentsSearch(this, filter);
 			},
 		},
 	};

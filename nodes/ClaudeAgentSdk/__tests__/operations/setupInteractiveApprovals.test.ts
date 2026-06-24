@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { executeTaskOperation } from '../../operations/executeTask';
 
 import { setupInteractiveApprovals } from '../../operations/executeTask/steps/interactiveApprovals';
+import { HITL_APPROVAL_RESUME_PROMPT } from '../../operations/executeTask/steps/hitlResponseApplication';
 import { createMockAdapter } from '../helpers/mockClaudeAgentSdk';
 import { createMockExecuteFunctions } from '../helpers/mockExecuteFunctions';
 
@@ -24,24 +25,25 @@ function createAskUserQuestionToolUseOnlyAdapter(): ReturnType<typeof createMock
 
 	return {
 		...baseAdapter,
-		promptOnce: () => (async function* () {
-			yield { type: 'system', subtype: 'init', session_id: 'session_ask_guard_1' };
-			yield {
-				type: 'tool_use',
-				name: 'AskUserQuestion',
-				input: {
-					questions: [
-						{
-							question: 'Proceed?',
-							header: 'Proceed',
-							options: [],
-							multiSelect: false,
-						},
-					],
-				},
-			};
-			yield { type: 'result', subtype: 'success' };
-		})(),
+		promptOnce: () =>
+			(async function* () {
+				yield { type: 'system', subtype: 'init', session_id: 'session_ask_guard_1' };
+				yield {
+					type: 'tool_use',
+					name: 'AskUserQuestion',
+					input: {
+						questions: [
+							{
+								question: 'Proceed?',
+								header: 'Proceed',
+								options: [],
+								multiSelect: false,
+							},
+						],
+					},
+				};
+				yield { type: 'result', subtype: 'success' };
+			})(),
 	};
 }
 
@@ -55,60 +57,64 @@ function createRepeatedAskUserQuestionAdapter(): {
 	return {
 		interruptSpy,
 		adapter: {
-		...baseAdapter,
-		promptOnce: (_prompt: string, options: Record<string, unknown>) => {
-			const stream = (async function* () {
-				yield { type: 'system', subtype: 'init', session_id: 'session_ask_repeat_1' };
+			...baseAdapter,
+			promptOnce: (_prompt: string, options: Record<string, unknown>) => {
+				const stream = (async function* () {
+					yield { type: 'system', subtype: 'init', session_id: 'session_ask_repeat_1' };
 
-				const canUseTool = options.canUseTool as
-					| ((toolName: string, input: Record<string, unknown>, options: { signal: AbortSignal }) => Promise<unknown>)
-					| undefined;
-				const signal = new AbortController().signal;
+					const canUseTool = options.canUseTool as
+						| ((
+								toolName: string,
+								input: Record<string, unknown>,
+								options: { signal: AbortSignal },
+						  ) => Promise<unknown>)
+						| undefined;
+					const signal = new AbortController().signal;
 
-				await canUseTool?.(
-					'AskUserQuestion',
-					{
-						questions: [
-							{
-								question: 'First?',
-								header: 'First',
-								options: [{ label: 'Yes', description: '' }],
-								multiSelect: false,
-							},
-						],
-					},
-					{ signal },
-				);
+					await canUseTool?.(
+						'AskUserQuestion',
+						{
+							questions: [
+								{
+									question: 'First?',
+									header: 'First',
+									options: [{ label: 'Yes', description: '' }],
+									multiSelect: false,
+								},
+							],
+						},
+						{ signal },
+					);
 
-				await canUseTool?.(
-					'AskUserQuestion',
-					{
-						questions: [
-							{
-								question: 'Second?',
-								header: 'Second',
-								options: [{ label: 'No', description: '' }],
-								multiSelect: false,
-							},
-						],
-					},
-					{ signal },
-				);
+					await canUseTool?.(
+						'AskUserQuestion',
+						{
+							questions: [
+								{
+									question: 'Second?',
+									header: 'Second',
+									options: [{ label: 'No', description: '' }],
+									multiSelect: false,
+								},
+							],
+						},
+						{ signal },
+					);
 
-				yield {
-					type: 'assistant',
-					uuid: 'assistant_after_pending',
-					message: {
-						content: [{ type: 'text', text: 'This should be suppressed once HITL is pending.' }],
-					},
-				};
-				yield { type: 'result', subtype: 'success' };
-			})();
+					yield {
+						type: 'assistant',
+						uuid: 'assistant_after_pending',
+						message: {
+							content: [{ type: 'text', text: 'This should be suppressed once HITL is pending.' }],
+						},
+					};
+					yield { type: 'result', subtype: 'success' };
+				})();
 
-			return Object.assign(stream, {
-				interrupt: interruptSpy,
-			});
-		},
+				return Object.assign(stream, {
+					interrupt: interruptSpy,
+				});
+			},
 		},
 	};
 }
@@ -193,13 +199,15 @@ describe('setupInteractiveApprovals', () => {
 		]);
 
 		const queryOptions: Record<string, unknown> = {};
-		await expect(setupInteractiveApprovals({
-			execFunctions: exec,
-			itemIndex: 0,
-			permissionMode: 'default',
-			queryOptions,
-			taskDescription: 'Original task',
-		})).rejects.toThrow(/requestId is required/i);
+		await expect(
+			setupInteractiveApprovals({
+				execFunctions: exec,
+				itemIndex: 0,
+				permissionMode: 'default',
+				queryOptions,
+				taskDescription: 'Original task',
+			}),
+		).rejects.toThrow(/requestId is required/i);
 	});
 
 	it('maps raw WhatsApp button reply approve token into strict approval_response fallback', async () => {
@@ -238,7 +246,7 @@ describe('setupInteractiveApprovals', () => {
 		expect(result.isApprovalResume).toBe(true);
 		expect(queryOptions.resume).toBe('session_from_memory_1');
 		expect(result.taskDescription).toBe('Original task');
-		expect(result.executionPrompt).toBe('Continue with the task.');
+		expect(result.executionPrompt).toBe(HITL_APPROVAL_RESUME_PROMPT);
 	});
 
 	it('maps raw WhatsApp question reply token into strict question_response fallback', async () => {
@@ -289,7 +297,6 @@ describe('setupInteractiveApprovals', () => {
 });
 
 describe('executeTaskOperation pre-flight guards', () => {
-
 	it('returns task_result when AskUserQuestion tool_use is emitted without runtime pending interaction creation', async () => {
 		const exec = createMockExecuteFunctions({
 			interactiveApprovals: 'pauseForApproval',

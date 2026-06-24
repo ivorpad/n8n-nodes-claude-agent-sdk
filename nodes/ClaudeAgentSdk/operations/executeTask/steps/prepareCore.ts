@@ -11,7 +11,6 @@ import * as fs from 'fs';
 import { maybeProcessBinaryInputs } from '../binaryInputs';
 import type { SecretsRedactor } from '../secretsRedaction';
 import { InvocationObservabilityCollector } from '../observability';
-import { parseObservabilityPersistenceConfig } from '../observabilityPostgres';
 import {
 	normalizeObservabilityMode,
 	normalizePositiveInt,
@@ -23,30 +22,32 @@ export async function prepareCoreParams(args: {
 	itemIndex: number;
 	backendMode: 'localCli' | 'managedAgent';
 	secretRedactor: SecretsRedactor;
+	companionWorkingDirectory?: string;
 }): Promise<{
 	taskDescription: string;
 	chatSessionId: string;
 	workingDirectory: string;
 	node: INode;
 	workflowId: string | undefined;
-	observabilityPersistenceConfig: ReturnType<typeof parseObservabilityPersistenceConfig>;
 	observabilityCollector: InvocationObservabilityCollector;
 }> {
-	const { execFunctions, itemIndex, backendMode, secretRedactor } = args;
+	const { execFunctions, itemIndex, backendMode, secretRedactor, companionWorkingDirectory } = args;
 
 	// Read task description - may be overridden by resume data below
 	// Validation is deferred until after resume data processing
 	let taskDescription = execFunctions.getNodeParameter('taskDescription', itemIndex, '') as string;
 
 	const chatSessionId = execFunctions.getNodeParameter('chatSessionId', itemIndex, '') as string;
-		const workingDirectory = execFunctions.getNodeParameter('workingDirectory', itemIndex, '') as string;
+	const configuredWorkingDirectory = execFunctions.getNodeParameter(
+		'workingDirectory',
+		itemIndex,
+		'',
+	) as string;
+	const workingDirectory = companionWorkingDirectory ?? configuredWorkingDirectory;
 	const node = execFunctions.getNode();
 	const workflowId = execFunctions.getWorkflow?.()?.id;
 	const executionSettings = execFunctions.getNodeParameter('executionSettings', itemIndex, {}) as ExecutionSettingsObservability;
 	const observabilityMode = normalizeObservabilityMode(executionSettings.observabilityMode);
-	const observabilityPersistenceConfig = parseObservabilityPersistenceConfig(
-		executionSettings as Record<string, unknown>,
-	);
 	const observabilityCollector = new InvocationObservabilityCollector({
 		mode: observabilityMode,
 		maxEvents: normalizePositiveInt(executionSettings.maxObservabilityEvents, 500, 10, 5000),
@@ -110,7 +111,6 @@ export async function prepareCoreParams(args: {
 		workingDirectory,
 		node,
 		workflowId,
-		observabilityPersistenceConfig,
 		observabilityCollector,
 	};
 }

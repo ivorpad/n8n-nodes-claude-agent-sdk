@@ -4,19 +4,14 @@
  * State lives here so phase modules and the orchestrator mutate one place.
  */
 
-import type { IExecuteFunctions } from 'n8n-workflow';
-
 import type { StreamStoreHandle } from '../../../streaming';
 import type { HitlInteractionStoreHandle } from '../../../hitl/interactionStore';
 import { InvocationObservabilityCollector } from '../observability';
 import {
-	persistInvocationObservability,
-	parseObservabilityPersistenceConfig,
 	type ObservabilityPersistenceResult,
 	type ObservabilityPersistenceStatus,
 } from '../observabilityPostgres';
-
-type ObservabilityPersistenceConfig = ReturnType<typeof parseObservabilityPersistenceConfig>;
+import type { ISessionMemory } from '../../../types';
 
 export interface ExecutionLifecycleState {
 	releaseSessionExecutionLock?: () => Promise<void>;
@@ -40,34 +35,33 @@ export interface ExecutionLifecycle {
 }
 
 export function createExecutionLifecycle(args: {
-	execFunctions: IExecuteFunctions;
 	itemIndex: number;
 	workflowId: string | undefined;
 	nodeName: string;
 	chatSessionId: string;
 	observabilityCollector: InvocationObservabilityCollector;
-	observabilityPersistenceConfig: ObservabilityPersistenceConfig;
+	sessionMemory: ISessionMemory | undefined;
+	persistSessionEnabled: boolean;
 	getDurableStreamKey: () => string | undefined;
 }): ExecutionLifecycle {
 	const {
-		execFunctions,
 		itemIndex,
 		workflowId,
 		nodeName,
 		chatSessionId,
 		observabilityCollector,
-		observabilityPersistenceConfig,
+		sessionMemory,
+		persistSessionEnabled,
 		getDurableStreamKey,
 	} = args;
+	const durablePersistence = persistSessionEnabled ? sessionMemory?.durablePersistence : undefined;
 
 	const state: ExecutionLifecycleState = {};
 	let observabilityPersistenceResult: ObservabilityPersistenceResult = {
-		backend: observabilityPersistenceConfig.backend,
+		backend: durablePersistence ? 'postgres' : 'runDataOnly',
 		attempted: false,
 		persisted: false,
-		tableName: observabilityPersistenceConfig.backend === 'postgres'
-			? observabilityPersistenceConfig.tableName
-			: undefined,
+		tableName: durablePersistence?.observabilityTableName,
 		rowCount: 0,
 	};
 	let observabilityPersistenceFlushed = false;
@@ -75,7 +69,7 @@ export function createExecutionLifecycle(args: {
 	const buildObservabilityMetadata = (): Record<string, string | number | boolean> => ({
 		...observabilityCollector.toMetadataHints(),
 		agentStreamKey: getDurableStreamKey() ?? '',
-		agentObsPersistenceBackend: observabilityPersistenceConfig.backend,
+		agentObsPersistenceBackend: observabilityPersistenceResult.backend,
 		agentObsPersistenceAttempted: observabilityPersistenceResult.attempted,
 		agentObsPersistencePersisted: observabilityPersistenceResult.persisted,
 		agentObsPersistenceRows: observabilityPersistenceResult.rowCount,
@@ -91,10 +85,18 @@ export function createExecutionLifecycle(args: {
 			return;
 		}
 		observabilityPersistenceFlushed = true;
+		if (!durablePersistence) {
+			observabilityPersistenceResult = {
+				backend: 'runDataOnly',
+				attempted: false,
+				persisted: false,
+				rowCount: 0,
+			};
+			return;
+		}
 		try {
-			observabilityPersistenceResult = await persistInvocationObservability({
-				execFunctions,
-				collector: observabilityCollector,
+			observabilityPersistenceResult = await durablePersistence.persistInvocationObservability({
+				observability: observabilityCollector.toTaskResultObservability(),
 				terminalStatus,
 				context: {
 					workflowId,
@@ -105,14 +107,13 @@ export function createExecutionLifecycle(args: {
 					sessionId: state.executionSessionIdForPersistence,
 					correlationId: state.observabilityCorrelationId,
 				},
-				config: observabilityPersistenceConfig,
 			});
 		} catch (error) {
 			observabilityPersistenceResult = {
-				backend: observabilityPersistenceConfig.backend,
+				backend: 'postgres',
 				attempted: true,
 				persisted: false,
-				tableName: observabilityPersistenceConfig.tableName,
+				tableName: durablePersistence.observabilityTableName,
 				rowCount: 0,
 				error: (error as Error).message,
 			};
