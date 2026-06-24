@@ -13,6 +13,7 @@ import { findSessionTranscriptPath } from '../sessionDirectory';
 import { InvocationObservabilityCollector } from '../observability';
 import { decodeManagedRequestId } from '../../../managedAgent/hitlBridge';
 import type { PendingHitlResolution } from '../types';
+import { debugLog, debugWarn } from '../../../diagnostics';
 
 export async function fetchSessionMemory(
 	execFunctions: IExecuteFunctions,
@@ -83,7 +84,7 @@ export async function resolveSessionState(args: {
 				managedAgentResumeSessionId = storedMetadata?.managedAgentSessionId;
 				resumeSessionId = undefined;
 				if (!managedAgentResumeSessionId) {
-					console.warn(
+					debugWarn(
 						`[Claude Agent SDK] Managed agent session memory entry exists for ${chatSessionId.slice(0, 8)}... ` +
 						'but no managedAgentSessionId stored — starting fresh session.',
 					);
@@ -97,7 +98,7 @@ export async function resolveSessionState(args: {
 				if (transcriptPath) {
 					resumeSessionId = chatSessionId;
 				} else {
-					console.warn(
+					debugWarn(
 						`[Claude Agent SDK] Stale deterministic session memory entry detected for ${chatSessionId.slice(0, 8)}...: ` +
 						`no transcript found under ${claudeConfigDirectory}/projects. ` +
 						'Clearing memory entry and bootstrapping deterministic session on this run.',
@@ -126,7 +127,7 @@ export async function resolveSessionState(args: {
 			},
 		});
 
-		console.log(
+		debugLog(
 			`[Claude Agent SDK] Session resolution: chat=${chatSessionId.slice(0, 8)}... ` +
 			`memoryHas=${hasStoredSession} ` +
 			(isManagedAgent

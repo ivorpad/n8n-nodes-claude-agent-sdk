@@ -12,6 +12,7 @@ import type {
 	AuditLoggerConfig,
 	PreToolUseHookInput,
 } from './types';
+import { debugWarn } from '../diagnostics';
 
 // =============================================================================
 // Redaction
@@ -64,7 +65,7 @@ function compileRedactionPatterns(patterns: string[]): RegExp[] {
 			try {
 				return new RegExp(pattern, 'gi');
 			} catch {
-				console.warn(`Invalid redaction pattern: ${pattern}`);
+				debugWarn(`Invalid redaction pattern: ${pattern}`);
 				return null;
 			}
 		})

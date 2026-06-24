@@ -14,6 +14,7 @@ import {
 } from '../managedAgentBinaryOutputs';
 import { resolveTranscriptWorkingDirectory } from '../sessionDirectory';
 import { InvocationObservabilityCollector } from '../observability';
+import { debugWarn } from '../../../diagnostics';
 
 export async function persistSessionMetadata(args: {
 	execFunctions: IExecuteFunctions;
@@ -97,7 +98,7 @@ export async function persistSessionMetadata(args: {
 					workingDirectory: mappingWorkingDirectory,
 				});
 			} else if (sessionIdToPersist && sessionIdToPersist !== chatSessionId) {
-				console.warn(
+				debugWarn(
 					`[Claude Agent SDK] Session drift detected: expected deterministic chat session ` +
 					`${chatSessionId.slice(0, 8)}... but execution returned ${sessionIdToPersist.slice(0, 8)}.... ` +
 					'Clearing deterministic session memory entry to force re-bootstrap on the next run.',

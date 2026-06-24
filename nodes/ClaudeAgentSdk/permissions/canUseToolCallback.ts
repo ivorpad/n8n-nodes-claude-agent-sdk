@@ -30,6 +30,7 @@ import {
 	resolveQueuedAnswerForQuestion,
 } from './canUseToolRules';
 import type { SharedExecutionState } from './sharedExecutionState';
+import { debugWarn } from '../diagnostics';
 
 export type { SharedExecutionState } from './sharedExecutionState';
 /**
@@ -128,7 +129,7 @@ export function createCanUseToolCallback(
 		const existingPendingInteraction = runtimePendingState.getPendingForExecution(executionId)[0];
 
 		if (existingPendingInteraction) {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Suppressing ${toolName} because ` +
 				`${existingPendingInteraction.kind}:${existingPendingInteraction.requestId} ` +
 				`is already pending for execution ${executionId ?? 'unknown'}`,

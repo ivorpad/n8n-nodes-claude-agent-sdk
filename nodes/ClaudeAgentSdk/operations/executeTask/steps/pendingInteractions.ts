@@ -14,6 +14,7 @@ import type { ExecuteTaskResult } from '../types';
 import { resolveTranscriptWorkingDirectory } from '../sessionDirectory';
 import type { InvocationObservabilityCollector } from '../observability';
 import type { RuntimePendingInteraction, RuntimePendingState } from '../hitlRuntimeState';
+import { debugLog, debugWarn } from '../../../diagnostics';
 
 type PendingQuestionArray = HitlQuestionDefinition[];
 
@@ -179,7 +180,7 @@ function scanPendingInteractions(args: {
 			executionId,
 		},
 	});
-	console.log(
+	debugLog(
 		`[Claude Agent SDK] waitForPendingInteractions — pendingCount=${pendingInteractions.length}, mode=${approvalConfig.mode}, handleAskUserQuestion=${approvalConfig.handleAskUserQuestion}, executionId=${executionId}, messageCount=${messages.length}`,
 	);
 	return pendingInteractions;
@@ -236,7 +237,7 @@ async function syncPendingSessionMetadata(args: {
 				managedAgentSessionId: executionSessionId,
 			});
 		} catch (error) {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Managed session memory touch failed (non-fatal): ${(error as Error).message}`,
 			);
 		}
@@ -257,7 +258,7 @@ async function syncPendingSessionMetadata(args: {
 		return;
 	}
 
-	console.warn(
+	debugWarn(
 		`[Claude Agent SDK] Session drift before HITL wait: expected ${chatSessionId.slice(0, 8)}... ` +
 			`but execution produced ${executionSessionId.slice(0, 8)}.... ` +
 			'Clearing deterministic session memory entry to force re-bootstrap.',
@@ -485,7 +486,7 @@ async function sendDeferredHitlNotifications(args: {
 				waitTill,
 			});
 		} catch (notifyError) {
-			console.warn(
+			debugWarn(
 				'[Claude Agent SDK] Failed to emit deferred HITL notification:',
 				(notifyError as Error).message,
 			);

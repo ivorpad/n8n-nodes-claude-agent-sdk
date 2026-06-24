@@ -38,6 +38,7 @@ import {
 	getRequestedStructuredOutputSchema,
 	type StructuredOutputFailureMode,
 } from '../executeTaskHelpers';
+import { debugWarn } from '../../../diagnostics';
 
 function normalizedNodeName(execFunctions: IExecuteFunctions): string {
 	return execFunctions.getNode().name.replace(/\s+/g, '_') || 'default';
@@ -219,7 +220,7 @@ export async function finalizeExecution(args: FinalizeExecutionArgs): Promise<Ex
 
 			if (!validationResult.success) {
 				structuredOutputValidationError = validationResult.error;
-				console.warn(
+				debugWarn(
 					`[Claude Agent SDK] Structured output passed SDK but failed node-side validation: ${validationResult.error}`,
 				);
 				observabilityCollector.record({

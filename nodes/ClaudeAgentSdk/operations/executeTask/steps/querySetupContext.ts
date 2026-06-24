@@ -20,6 +20,7 @@ import type {
 	QuerySetupContextArgs,
 	ResolvedAuthMethod,
 } from './querySetupTypes';
+import { debugWarn } from '../../../diagnostics';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -231,7 +232,7 @@ function validateProxySetup(args: {
 		);
 	}
 	if (args.useProxyManager && [args.httpProxyUrl, args.httpsProxyUrl].some(validateProxyUrl)) {
-		console.warn(
+		debugWarn(
 			'[Claude Agent SDK] Proxy URL contains inline credentials. Prefer Secure Environment Variables for secrets.',
 		);
 	}
@@ -293,7 +294,7 @@ function validateOllamaBaseUrl(baseUrl: string): void {
 		);
 	}
 	if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
-		console.warn(
+		debugWarn(
 			'[Claude Agent SDK] Warning: Ollama Base URL uses localhost. ' +
 				'If running in Docker, use host.docker.internal instead of localhost ' +
 				'to access services on the host machine.',

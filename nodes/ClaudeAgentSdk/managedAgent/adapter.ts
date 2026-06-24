@@ -21,6 +21,7 @@ import type { NodeQueryOptions, SdkAdapter, SessionHandle, QueryHandle } from '.
 import type { ManagedAgentConfig, ManagedAgentRawEvent, ManagedStreamMessage } from './types';
 import { createManagedEventMapper } from './eventMapper';
 import { buildManagedSessionCreateParams } from './configuration';
+import { debugWarn } from '../diagnostics';
 
 type ThreadRoutedCustomToolResultEvent = BetaManagedAgentsUserCustomToolResultEventParams & {
 	session_thread_id?: string | null;
@@ -244,7 +245,7 @@ export class ManagedAgentAdapter implements SdkAdapter {
 						eventStream = await client.beta.sessions.events.stream(resumeSessionId);
 						sessionId = resumeSessionId;
 					} catch (err) {
-						console.warn(
+						debugWarn(
 							`[ManagedAgent] Resume failed for ${resumeSessionId} (${err instanceof Error ? err.message : String(err)}); creating fresh session`,
 						);
 						const session = await createSessionOrThrow();
@@ -353,7 +354,7 @@ export class ManagedAgentAdapter implements SdkAdapter {
 									},
 								};
 							} catch (err) {
-								console.warn('[ManagedAgent] Failed to download', file.id, err);
+								debugWarn('[ManagedAgent] Failed to download', file.id, err);
 							}
 						}
 
@@ -377,7 +378,7 @@ export class ManagedAgentAdapter implements SdkAdapter {
 							};
 						}
 					} catch (err) {
-						console.warn('[ManagedAgent] Failed to list session files:', err);
+						debugWarn('[ManagedAgent] Failed to list session files:', err);
 					}
 				}
 			} finally {

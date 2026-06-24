@@ -14,6 +14,7 @@ import {
 } from './querySetupContext';
 import type { QuerySetupContext, ThinkingSetup } from './querySetupTypes';
 import type { EffortLevel } from '../../../sdk/types';
+import { debugWarn } from '../../../diagnostics';
 
 const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly EffortLevel[];
 
@@ -47,7 +48,7 @@ function buildStandardThinkingSetup(args: {
 			(args.thinkingMode === 'enabled' && args.thinkingBudgetTokens > 0) ||
 			args.legacyMaxThinkingTokens > 0
 		) {
-			console.warn(
+			debugWarn(
 				'[Claude Agent SDK] Fixed thinking budgets are not supported on Fable 5 / Opus 4.7+. Using adaptive thinking and effort instead.',
 			);
 		}
@@ -107,7 +108,7 @@ function buildAlibabaThinkingSetup(args: {
 		Math.min(ALIBABA_MAX_THINKING_BUDGET_TOKENS, Math.floor(requestedBudget)),
 	);
 	if (normalizedBudget !== Math.floor(requestedBudget)) {
-		console.warn(
+		debugWarn(
 			`[Claude Agent SDK] Alibaba thinking budget ${requestedBudget} adjusted to ${normalizedBudget} (allowed range: 1-${ALIBABA_MAX_THINKING_BUDGET_TOKENS}).`,
 		);
 	}

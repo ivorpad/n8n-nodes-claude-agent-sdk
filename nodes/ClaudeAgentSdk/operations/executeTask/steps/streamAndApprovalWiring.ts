@@ -33,6 +33,7 @@ import type { RuntimePendingState } from '../hitlRuntimeState';
 import type { PendingHitlResolution } from '../types';
 import type { NodeQueryOptions } from '../../../sdk/types';
 import { InvocationObservabilityCollector } from '../observability';
+import { debugLog, debugWarn } from '../../../diagnostics';
 
 type ActiveSendChunkFn = ReturnType<typeof getSendChunkFn> | undefined;
 
@@ -117,7 +118,7 @@ export async function setupStreamTransport(args: {
 				});
 			}
 		} catch (error) {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Durable stream persistence unavailable: ${(error as Error).message}`,
 			);
 			observabilityCollector.record({
@@ -135,7 +136,7 @@ export async function setupStreamTransport(args: {
 				try {
 					await handle.close();
 				} catch (closeError) {
-					console.warn(
+					debugWarn(
 						`[Claude Agent SDK] Failed to close durable stream store: ${(closeError as Error).message}`,
 					);
 				}
@@ -269,7 +270,7 @@ export async function setupApprovalWiring(args: {
 				} else {
 					delete queryOptions.allowedTools;
 				}
-				console.log('[Claude Agent SDK] Removed AskUserQuestion from allowedTools — HITL canUseToolCallback will intercept it.');
+				debugLog('[Claude Agent SDK] Removed AskUserQuestion from allowedTools — HITL canUseToolCallback will intercept it.');
 			}
 		}
 

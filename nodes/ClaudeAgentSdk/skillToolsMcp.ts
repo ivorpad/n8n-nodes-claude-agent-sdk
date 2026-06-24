@@ -19,6 +19,7 @@ import { discoverSkills, parseSkillDocument } from './skills/discover';
 import type { McpToolResult } from './mcpTypes';
 import type { ClaudeAgentSdkModule } from './sdk/types';
 import type { McpSdkServerConfig, N8nMcpSettings } from './types';
+import { debugLog } from './diagnostics';
 
 interface SkillToolManifest {
 	name?: string;
@@ -553,7 +554,7 @@ export async function executeSkillTool(args: {
 	const logPrefix = '[Claude Agent SDK][SkillTools]';
 
 	if (tool.kind === 'runnable') {
-		console.log(
+		debugLog(
 			`${logPrefix} invoking runnable skill "${tool.skillName}" as "${toolName}" (node=${nodeName}, itemIndex=${itemIndex})`,
 		);
 		const run = await executeRunnableSkillTool({
@@ -565,7 +566,7 @@ export async function executeSkillTool(args: {
 			executionId,
 			correlationId,
 		});
-		console.log(
+		debugLog(
 			`${logPrefix} runnable skill "${tool.skillName}" completed (ok=${run.ok}, exitCode=${run.exitCode}, durationMs=${run.durationMs})`,
 		);
 
@@ -598,7 +599,7 @@ export async function executeSkillTool(args: {
 	}
 
 	const instructionOutput = toInstructionOutput(tool.instructions);
-	console.log(
+	debugLog(
 		`${logPrefix} invoking instruction skill "${tool.skillName}" as "${toolName}" (node=${nodeName}, itemIndex=${itemIndex}, instructionsLength=${instructionOutput.instructionsLength})`,
 	);
 	return {

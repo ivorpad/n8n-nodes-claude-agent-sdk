@@ -10,6 +10,7 @@ import { NOOP_SECRETS_REDACTOR, type SecretsRedactor } from '../secretsRedaction
 
 import { executeNonStreaming, executeStreaming } from '../execution';
 import type { ExecutionResult } from '../types';
+import { debugWarn } from '../../../diagnostics';
 
 type ResumeRecoveryAction =
 	| { kind: 'retry_plain_resume' }
@@ -307,7 +308,7 @@ export async function runAgentExecution(args: {
 					reason: error instanceof Error ? error.message : String(error),
 				},
 			});
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] resumeSessionAt lookup failed for session ${String(queryOptions.resume).substring(0, 8)}... — ` +
 					`retrying with plain resume. Original error: ${(error as Error).message}`,
 			);
@@ -319,7 +320,7 @@ export async function runAgentExecution(args: {
 		if (recoveryAction.kind === 'retry_fresh') {
 			const resumeFreshHeuristic = classifyResumeFreshRetry(error);
 			if (resumeFreshHeuristic === 'generic_exit_code_1') {
-				console.warn(
+				debugWarn(
 					'[Claude Agent SDK] Resume failed with exit code 1 but no session/resume markers in stderr — ' +
 						'falling back to a fresh session. If this was not a transient CLI quirk, the task context was dropped.',
 				);
@@ -336,7 +337,7 @@ export async function runAgentExecution(args: {
 				},
 			});
 			const sid = String(queryOptions.resume);
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Resume failed for session ${sid.substring(0, 8)}... — ` +
 					`starting fresh session. Original error: ${(error as Error).message}`,
 			);
@@ -382,7 +383,7 @@ export async function runAgentExecution(args: {
 					reason: firstError instanceof Error ? firstError.message : String(firstError),
 				},
 			});
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Deterministic session bootstrap collided for ${bootstrapSessionId.substring(0, 8)}... ` +
 					'— retrying with resume on the same session ID.',
 			);
@@ -429,7 +430,7 @@ export async function runAgentExecution(args: {
 				},
 			});
 			const sid = String(queryOptions.resume);
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Empty message stream for resumed session ${sid.substring(0, 8)}... — ` +
 					'retrying once as fresh session.',
 			);
@@ -448,7 +449,7 @@ export async function runAgentExecution(args: {
 				},
 			});
 			const retryMode = hadResume ? 'resumed' : 'new';
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Empty message stream for ${retryMode} execution — retrying once with same query options.`,
 			);
 			stderrOutput.length = 0;

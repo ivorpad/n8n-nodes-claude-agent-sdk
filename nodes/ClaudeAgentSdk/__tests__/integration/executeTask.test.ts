@@ -51,6 +51,7 @@ describe('ExecuteTask Integration', () => {
 	let mockAdapter: SdkAdapter;
 	const originalN8nMcpFlag = process.env.CLAUDE_AGENT_SDK_ENABLE_N8N_MCP_IN_PROCESS;
 	const originalAgentPlaneFlag = process.env.AGENT_PLANE_ENABLED;
+	const originalDebugLogsFlag = process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS;
 
 	const defaultParams: Record<string, unknown> = {
 		taskDescription: 'Test task',
@@ -112,6 +113,11 @@ describe('ExecuteTask Integration', () => {
 			delete process.env.AGENT_PLANE_ENABLED;
 		} else {
 			process.env.AGENT_PLANE_ENABLED = originalAgentPlaneFlag;
+		}
+		if (originalDebugLogsFlag === undefined) {
+			delete process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS;
+		} else {
+			process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = originalDebugLogsFlag;
 		}
 	});
 
@@ -1564,6 +1570,7 @@ describe('ExecuteTask Integration', () => {
 
 		it('logs completion callback failures without failing a successful Agent Plane run', async () => {
 			process.env.AGENT_PLANE_ENABLED = '1';
+			process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = 'true';
 			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 			const fetchMock = vi.fn(async (input: unknown) => {
 				const url = String(input);
@@ -1815,6 +1822,7 @@ describe('ExecuteTask Integration', () => {
 		});
 
 		it('clamps explicit Alibaba thinking budget to provider limits', async () => {
+			process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = 'true';
 			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 			mockExec.getNodeParameter.mockImplementation(
 				(name: string, _itemIndex: number, defaultValue?: unknown) => {

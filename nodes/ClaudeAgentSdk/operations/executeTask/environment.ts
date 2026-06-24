@@ -6,6 +6,7 @@
 import { ApplicationError } from 'n8n-workflow';
 import type { ApiProvider } from '../../providerConfig';
 import { DEFAULT_API_PROVIDER, PROVIDER_DEFAULTS } from '../../providerConfig';
+import { debugWarn } from '../../diagnostics';
 
 /**
  * Default dangerous environment variable names that should be blocked.
@@ -76,7 +77,7 @@ function filterDangerousEnvVars(env: Record<string, unknown>, blockedVars: Set<s
 	for (const key of Object.keys(env)) {
 		if (blockedVars.has(key)) {
 			delete env[key];
-			console.warn(`[Security] Blocked dangerous environment variable: ${key}`);
+			debugWarn(`[Security] Blocked dangerous environment variable: ${key}`);
 		}
 	}
 }

@@ -68,6 +68,7 @@ import {
 	resolveExecutionScope,
 	setObservabilityMetadata,
 } from './executeTaskHelpers';
+import { debugWarn } from '../../diagnostics';
 
 function getExecutionId(execFunctions: IExecuteFunctions): string | undefined {
 	const maybeGetExecutionId = (execFunctions as { getExecutionId?: () => string | undefined })
@@ -548,7 +549,7 @@ export async function executeTaskOperation(
 					resultJson: finalized.returnData.json,
 				}),
 			}).catch((callbackError) => {
-				console.warn(
+				debugWarn(
 					`[Claude Agent SDK] Failed to notify Agent Plane about completed run: ${(callbackError as Error).message}`,
 				);
 			});
@@ -568,7 +569,7 @@ export async function executeTaskOperation(
 				workingDirectory: companionWorkingDirectory,
 			},
 		}).catch((callbackError) => {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Failed to notify Agent Plane about failed run: ${(callbackError as Error).message}`,
 			);
 		});
@@ -604,7 +605,7 @@ export async function executeTaskOperation(
 					},
 				});
 			} catch (streamError) {
-				console.warn(
+				debugWarn(
 					`[Claude Agent SDK] Failed to mark durable stream as failed: ${(streamError as Error).message}`,
 				);
 			}

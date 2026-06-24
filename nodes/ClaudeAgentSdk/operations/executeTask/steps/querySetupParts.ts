@@ -27,6 +27,7 @@ import type {
 } from './querySetupTypes';
 import type { SettingSource, UpstreamQueryOptions } from '../../../sdk/types';
 import { resolveNpmClaudeCodeExecutable } from '../../../sdk/claudeCodeExecutable';
+import { debugWarn } from '../../../diagnostics';
 
 export { buildQuerySetupContext } from './querySetupContext';
 export { buildThinkingSetup } from './queryThinkingSetup';
@@ -193,7 +194,7 @@ function buildSettingSources(additionalOptions: AdditionalOptions): SettingSourc
 
 function warnWhenSkillSettingsMissing(allowedTools: string[], settingSources: string[]): void {
 	if (!allowedTools.includes('Skill') || settingSources.length > 0) return;
-	console.warn(
+	debugWarn(
 		'[Claude Agent SDK] Warning: "Skill" is in allowed tools but no settings sources are enabled. ' +
 			'Skills require "Load Project CLAUDE.md" or "Load User Settings" to be enabled in Additional Options.',
 	);

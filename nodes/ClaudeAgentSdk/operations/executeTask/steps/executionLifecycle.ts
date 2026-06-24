@@ -12,6 +12,7 @@ import {
 	type ObservabilityPersistenceStatus,
 } from '../observabilityPostgres';
 import type { ISessionMemory } from '../../../types';
+import { debugWarn } from '../../../diagnostics';
 
 export interface ExecutionLifecycleState {
 	releaseSessionExecutionLock?: () => Promise<void>;
@@ -118,7 +119,7 @@ export function createExecutionLifecycle(args: {
 				error: (error as Error).message,
 			};
 			if (options?.allowFailure === true) {
-				console.warn(
+				debugWarn(
 					`[Claude Agent SDK] Observability persistence failed on ${terminalStatus} path: ${(error as Error).message}`,
 				);
 				return;
@@ -134,7 +135,7 @@ export function createExecutionLifecycle(args: {
 		try {
 			await release();
 		} catch (error) {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Failed to release session execution lock: ${(error as Error).message}`,
 			);
 		}
@@ -147,7 +148,7 @@ export function createExecutionLifecycle(args: {
 		try {
 			await handle.close();
 		} catch (error) {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Failed to close durable stream store: ${(error as Error).message}`,
 			);
 		}
@@ -160,7 +161,7 @@ export function createExecutionLifecycle(args: {
 		try {
 			await handle.close();
 		} catch (error) {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Failed to close HITL interaction store: ${(error as Error).message}`,
 			);
 		}

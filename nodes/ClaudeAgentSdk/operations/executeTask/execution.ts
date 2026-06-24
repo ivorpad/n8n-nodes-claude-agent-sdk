@@ -21,6 +21,7 @@ import {
 	NOOP_SECRETS_REDACTOR,
 	type SecretsRedactor,
 } from './secretsRedaction';
+import { debugLog, debugWarn } from '../../diagnostics';
 
 async function interruptQueryOnce(
 	queryResult: QueryHandle,
@@ -34,7 +35,7 @@ async function interruptQueryOnce(
 	try {
 		await queryResult.interrupt();
 	} catch (error) {
-		console.warn('[Claude Agent SDK] Failed to interrupt active query after HITL latch', error);
+		debugWarn('[Claude Agent SDK] Failed to interrupt active query after HITL latch', error);
 	}
 }
 
@@ -120,7 +121,7 @@ export async function executeStreaming(params: {
 		for await (const msg of queryResult) {
 			const hasPending = shouldHaltOnPendingInteraction?.();
 			if (hasPending) {
-				console.log(`[Claude Agent SDK] HITL interrupt: pending interaction detected, interrupting agent loop (message type: ${isKnownNodeMessage(msg) ? msg.type : 'unknown'})`);
+				debugLog(`[Claude Agent SDK] HITL interrupt: pending interaction detected, interrupting agent loop (message type: ${isKnownNodeMessage(msg) ? msg.type : 'unknown'})`);
 				await interruptQueryOnce(queryResult, interruptState);
 				break;
 			}

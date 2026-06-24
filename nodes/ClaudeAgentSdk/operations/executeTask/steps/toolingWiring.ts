@@ -28,6 +28,7 @@ import { buildMcpHeaderEnvironment } from '../config';
 import type { ExecuteTaskOptions } from '../types';
 import type { NodeQueryOptions, SdkHooks } from '../../../sdk/types';
 import { parseHookHandlerConfigs } from '../executeTaskHelpers';
+import { debugLog, debugWarn } from '../../../diagnostics';
 
 export async function wireToolingAndHooks(args: {
 	execFunctions: IExecuteFunctions;
@@ -130,7 +131,7 @@ export async function wireToolingAndHooks(args: {
 		});
 		mcpServers[n8nMcpServer.serverName] = n8nMcpServer.serverConfig;
 		for (const warning of n8nMcpServer.warnings) {
-			console.warn(`[Claude Agent SDK] ${warning}`);
+			debugWarn(`[Claude Agent SDK] ${warning}`);
 		}
 	}
 	if (n8nMcpSettings.enableSkillTools) {
@@ -149,9 +150,9 @@ export async function wireToolingAndHooks(args: {
 		if (skillMcpServer) {
 			mcpServers[skillMcpServer.serverName] = skillMcpServer.serverConfig;
 			for (const warning of skillMcpServer.warnings) {
-				console.warn(`[Claude Agent SDK] ${warning}`);
+				debugWarn(`[Claude Agent SDK] ${warning}`);
 			}
-			console.log(
+			debugLog(
 				`[Claude Agent SDK] Registered ${skillMcpServer.toolCount} auto-loaded skill tools on MCP server "${skillMcpServer.serverName}".`,
 			);
 		}
@@ -166,7 +167,7 @@ export async function wireToolingAndHooks(args: {
 	if (connectedAiToolsMcp) {
 		mcpServers[connectedAiToolsMcp.serverName] = connectedAiToolsMcp.serverConfig;
 		for (const warning of connectedAiToolsMcp.warnings) {
-			console.warn(`[Claude Agent SDK] ${warning}`);
+			debugWarn(`[Claude Agent SDK] ${warning}`);
 		}
 		if (allowedTools.length > 0) {
 			appendAllowedTools(
@@ -175,7 +176,7 @@ export async function wireToolingAndHooks(args: {
 				),
 			);
 		}
-		console.log(
+		debugLog(
 			`[Claude Agent SDK] Registered ${connectedAiToolsMcp.toolCount} connected AiTool input(s) on MCP server "${connectedAiToolsMcp.serverName}".`,
 		);
 	}

@@ -19,6 +19,7 @@ import type {
 } from './types';
 import type { ClaudeAgentSdkModule } from './sdk/types';
 import type { SharedExecutionState } from './permissions/canUseToolCallback';
+import { debugError, debugLog, debugWarn } from './diagnostics';
 
 interface BuildN8nSdkMcpServerArgs {
 	execFunctions: IExecuteFunctions;
@@ -207,11 +208,11 @@ export function buildN8nSdkMcpServer(args: BuildN8nSdkMcpServerArgs): BuildN8nSd
 
 					const logPrefix = '[Claude Agent SDK][n8n MCP]';
 					if (level === 'warn') {
-						console.warn(`${logPrefix} ${message}`);
+						debugWarn(`${logPrefix} ${message}`);
 					} else if (level === 'error') {
-						console.error(`${logPrefix} ${message}`);
+						debugError(`${logPrefix} ${message}`);
 					} else {
-						console.log(`${logPrefix} ${message}`);
+						debugLog(`${logPrefix} ${message}`);
 					}
 
 					return textResult(`Logged ${level} event.`);

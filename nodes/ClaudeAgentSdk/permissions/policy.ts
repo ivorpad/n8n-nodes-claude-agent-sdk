@@ -8,6 +8,7 @@
 import path from 'node:path';
 import type { PermissionsConfig, PathSandboxConfig } from './types';
 import type { SandboxConfig } from '../sandbox/types';
+import { debugWarn } from '../diagnostics';
 
 export interface OperatorPolicy {
 	allowedPaths?: string[];
@@ -48,7 +49,7 @@ function normalizeAbsolutePaths(paths: string[] | undefined): string[] | undefin
 	const normalized: string[] = [];
 	for (const candidate of paths) {
 		if (!path.isAbsolute(candidate)) {
-			console.warn(
+			debugWarn(
 				`[Claude Agent SDK] Ignoring non-absolute operator policy path: "${candidate}". ` +
 				'Use absolute paths in N8N_CLAUDE_POLICY_ALLOWED_PATHS.',
 			);

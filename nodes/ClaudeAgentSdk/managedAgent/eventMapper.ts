@@ -24,6 +24,7 @@ import type { BetaContentBlock, BetaMessage } from '@anthropic-ai/sdk/resources/
 
 import type { NonNullableUsage, SDKResultError, SDKResultSuccess } from '../sdk/types';
 import type { ManagedAgentRawEvent, ManagedSdkMessage, ManagedStreamMessage } from './types';
+import { debugWarn } from '../diagnostics';
 
 /** Placeholder model id — the Managed Agents stream does not expose one. */
 const MANAGED_AGENT_MODEL = 'managed-agent';
@@ -210,7 +211,7 @@ export function createManagedEventMapper(sessionId: string): ManagedEventMapper 
 				// HITL correlation on resume.
 				const toolUseId = typeof event.id === 'string' ? event.id : undefined;
 				if (!toolUseId) {
-					console.warn(
+					debugWarn(
 						`[ManagedAgent] Dropping ${event.type} with missing id — cannot correlate for HITL resume`,
 					);
 					return [];

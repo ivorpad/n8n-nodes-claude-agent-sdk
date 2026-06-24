@@ -11,6 +11,7 @@ import type {
 	ToolPermissionDecision,
 	PreToolUseHookInput,
 } from './types';
+import { debugWarn } from '../diagnostics';
 
 // =============================================================================
 // Glob Pattern Matching
@@ -108,7 +109,7 @@ function evaluateCondition(
 					result = fieldValue.endsWith(value);
 					break;
 				default:
-					console.warn(`Unknown method in condition: ${method}`);
+					debugWarn(`Unknown method in condition: ${method}`);
 					result = false;
 			}
 		}
@@ -122,7 +123,7 @@ function evaluateCondition(
 			result = fieldValue !== value;
 		}
 	} else {
-		console.warn(`Could not parse condition: ${condition}`);
+		debugWarn(`Could not parse condition: ${condition}`);
 		result = false;
 	}
 

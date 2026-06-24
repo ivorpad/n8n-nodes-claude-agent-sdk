@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { AdditionalOptions, ISessionMemory } from '../../types';
 import { buildQuerySetup } from '../../operations/executeTask/steps/querySetup';
@@ -12,6 +12,17 @@ const defaultOperatorPolicy: OperatorPolicy = {
 	forceSandbox: false,
 	disallowUnsandboxedCommands: false,
 };
+
+const originalDebugLogsFlag = process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS;
+
+afterEach(() => {
+	if (originalDebugLogsFlag === undefined) {
+		delete process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS;
+	} else {
+		process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = originalDebugLogsFlag;
+	}
+	vi.restoreAllMocks();
+});
 
 function createParams(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 	return {
@@ -129,6 +140,7 @@ describe('buildQuerySetup', () => {
 	});
 
 	it('clamps Alibaba thinking budget and removes incompatible effort options', async () => {
+		process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = 'true';
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
 		const setup = await setupQuery({
@@ -210,6 +222,7 @@ describe('buildQuerySetup', () => {
 	});
 
 	it('suppresses fixed thinking budgets for Opus 4.8 and keeps effort', async () => {
+		process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = 'true';
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
 		const setup = await setupQuery({

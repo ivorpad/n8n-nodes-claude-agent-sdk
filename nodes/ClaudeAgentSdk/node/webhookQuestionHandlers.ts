@@ -17,6 +17,7 @@ import {
 	parseQuestionsFromEncodedQuery,
 	resolveQuestionControlAction,
 } from './webhookHelpers';
+import { debugError } from '../diagnostics';
 
 interface QuestionHandlerArgs {
 	ctx: IWebhookFunctions;
@@ -103,7 +104,7 @@ export async function handleGetQuestion(
 			res.send(html);
 			return { noWebhookResponse: true };
 		} catch (error) {
-			console.error('[Claude Agent SDK] Failed to render question form:', error);
+			debugError('[Claude Agent SDK] Failed to render question form:', error);
 			return { webhookResponse: 'Error: Failed to render question form' };
 		}
 	}
@@ -128,7 +129,7 @@ export async function handlePostQuestion(
 		try {
 			answers = parseQuestionSubmission(body, questions).answers;
 		} catch (error) {
-			console.error('[Claude Agent SDK] Failed to parse form answers:', error);
+			debugError('[Claude Agent SDK] Failed to parse form answers:', error);
 			return { webhookResponse: 'Error: Failed to parse form answers' };
 		}
 	} else if (body.answers) {

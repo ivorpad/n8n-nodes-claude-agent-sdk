@@ -19,6 +19,7 @@ import type {
 	ContentFilterTool,
 	ContentFilterTarget,
 } from './types';
+import { debugWarn } from '../diagnostics';
 
 // =============================================================================
 // Built-in Presets
@@ -334,7 +335,7 @@ function checkPattern(
 		};
 	} catch {
 		// Invalid patterns are treated as non-matching, matching the previous behavior.
-		console.warn(`Invalid or unsupported regex pattern: ${pattern}`);
+		debugWarn(`Invalid or unsupported regex pattern: ${pattern}`);
 		return { status: 'no-match' };
 	}
 }

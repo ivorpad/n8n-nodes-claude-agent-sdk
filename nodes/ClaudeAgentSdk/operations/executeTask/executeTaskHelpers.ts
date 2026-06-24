@@ -10,6 +10,7 @@ import { InvocationObservabilityCollector } from './observability';
 import type { JsonSchema, ObservabilityMode } from '../../types';
 import type { HookHandlerConfig } from '../../hooks/webhookHooks';
 import type { NodeQueryOptions } from '../../sdk/types';
+import { debugWarn } from '../../diagnostics';
 
 
 /**
@@ -163,7 +164,7 @@ export function setObservabilityMetadata(
 			...metadata,
 		});
 	} catch (error) {
-		console.warn(
+		debugWarn(
 			`[Claude Agent SDK] Failed to persist observability metadata hints: ${(error as Error).message}`,
 		);
 	}

@@ -23,6 +23,7 @@ import {
 import { isNodeCredentialType, resolveAuthMethod } from '../authMethod';
 import type { AuthMethod } from '../authMethod';
 import { loadCodeMieCompanion } from '../codemie/companion';
+import { debugError } from '../diagnostics';
 
 type OptionalCredentialKey =
 	| 'claudeApi'
@@ -515,7 +516,7 @@ export async function execute(
 				returnData.push(...result.extraReturnItems);
 			}
 			} catch (error) {
-				console.error('[Claude Agent SDK] Error executing task:', {
+				debugError('[Claude Agent SDK] Error executing task:', {
 				message: error instanceof Error ? error.message : String(error),
 				name: error instanceof Error ? error.name : undefined,
 				code: (error as NodeJS.ErrnoException)?.code,

@@ -30,6 +30,7 @@ import {
 import type { HitlQuestionDefinition } from '../hitl/contractTypes';
 import type { NodeStreamMessage } from '../sdk/types';
 import type { ManagedAgentRawEvent, ManagedSdkMessage } from './types';
+import { debugWarn } from '../diagnostics';
 
 /** Extra metadata for managed-agent HITL interactions, persisted in the
  *  interaction store so the resume path can build resumeWithToolResult. */
@@ -201,7 +202,7 @@ export function injectManagedHitlInteraction(args: {
 		}
 
 		if (!capture) {
-			console.warn(
+			debugWarn(
 				'[ManagedAgent] requires_action with no preceding tool_use — cannot bridge HITL',
 			);
 		return null;

@@ -21,6 +21,7 @@ import type {
 	AgtFilterValue,
 } from './types';
 import { ENV_FILE_PROTECTION_RULES } from './ContentFilter';
+import { debugWarn } from '../diagnostics';
 
 /**
  * Parse permissions configuration from n8n node parameters
@@ -126,7 +127,7 @@ export function parsePermissionsConfig(
 			try {
 				customRules = JSON.parse(contentFilterParam.settings.customRules);
 			} catch {
-				console.warn('Failed to parse custom content filter rules');
+				debugWarn('Failed to parse custom content filter rules');
 			}
 		}
 
@@ -145,7 +146,7 @@ export function parsePermissionsConfig(
 			try {
 				rules = JSON.parse(toolPermissionsParam.settings.rules);
 			} catch {
-				console.warn('Failed to parse tool permission rules');
+				debugWarn('Failed to parse tool permission rules');
 			}
 		}
 
