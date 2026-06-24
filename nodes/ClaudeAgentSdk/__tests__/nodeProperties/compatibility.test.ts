@@ -314,11 +314,11 @@ describe('node properties compatibility', () => {
 		expect(PHOENIX_COMPANION_BASE_URL).toBe('http://host.docker.internal:4000');
 		expect(PHOENIX_COMPANION_LOCAL_BASE_URL).toBe('http://127.0.0.1:4000');
 		expect(optionNames).toEqual([
-			'useCompanionAgent',
 			'companionAgentId',
 			'companionLifecycleCallbacks',
 			'companionReadinessMode',
 			'companionRequireSynced',
+			'useCompanionAgent',
 		]);
 		expect(allPropertyNames).not.toContain('companionBaseUrl');
 		expect(allPropertyNames).not.toContain('phoenixBaseUrl');

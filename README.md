@@ -42,35 +42,31 @@ Start with the public usage docs:
 
 ## Quick Install
 
-### From GitHub (current distribution)
+### From npm
 
-The package is installed straight from this repository (it is not on the npm
-registry yet). Its `prepare` hook builds the node on install, and
-`@anthropic-ai/claude-code` is pulled in automatically — no `#branch` suffix
-needed:
+Install from the n8n editor: **Settings -> Community Nodes -> Install a
+community node**, then enter `n8n-nodes-claude-agent-sdk`. Restart n8n if your
+deployment does not reload community nodes automatically.
+
+For npm-based self-hosted installs:
 
 ```bash
 mkdir -p ~/.n8n/nodes && cd ~/.n8n/nodes
 npm init -y >/dev/null 2>&1   # only if this folder has no package.json yet
-npm install git+https://github.com/ivorpad/n8n-nodes-claude-agent-sdk.git
+npm install n8n-nodes-claude-agent-sdk
 ```
 
-Restart n8n afterwards; re-run the `npm install` to update.
+Restart n8n afterwards; re-run `npm install n8n-nodes-claude-agent-sdk@latest`
+to update.
 
-> **Prerequisites:** `git` on the host (npm shells out to clone) and **Node.js 20
-> or 22** — n8n's supported runtime. (A transitive native dependency,
-> `isolated-vm`, does not yet build on Node 26.)
+> **Prerequisites:** self-hosted n8n with community nodes enabled, and a runtime
+> that allows the node's required host capabilities such as child processes and
+> filesystem access.
 >
 > **CodeMie SSO:** also install the companion
 > [`n8n-nodes-claude-codemie`](https://github.com/ivorpad/n8n-nodes-claude-codemie)
 > the same way — installing it is the feature flag that enables the **CodeMie
 > Proxy** authentication option on the node.
-
-### From the n8n editor
-
-Once the package is published to the npm registry, install it from **Settings ->
-Community Nodes -> Install a community node** by entering
-`n8n-nodes-claude-agent-sdk`. Restart n8n if your deployment requires it.
 
 ### From a local tarball
 

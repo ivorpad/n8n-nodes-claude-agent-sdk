@@ -154,7 +154,7 @@ function prependStaleWarning(
 		{
 			name: `Stale Agent Plane Agent (${storedValue}) - Re-Pick Below`,
 			value: storedValue,
-			description: `${storedValue} is not visible to the current Agent Plane API key.`,
+			description: `${storedValue} is not visible to the current Agent Plane API key`,
 		},
 		...options,
 	];

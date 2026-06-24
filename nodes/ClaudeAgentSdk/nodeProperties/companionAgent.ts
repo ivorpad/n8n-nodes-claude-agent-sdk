@@ -17,13 +17,6 @@ const companionAgentProperty: INodeProperties = {
 	},
 	options: [
 		{
-			displayName: 'Use Agent Plane',
-			name: 'useCompanionAgent',
-			type: 'boolean',
-			default: false,
-			description: 'Whether to resolve workingDirectory from Agent Plane before execution',
-		},
-		{
 			displayName: 'Agent',
 			name: 'companionAgentId',
 			type: 'resourceLocator',
@@ -83,6 +76,13 @@ const companionAgentProperty: INodeProperties = {
 			default: true,
 			description:
 				'Whether to fail fast when Agent Plane reports the workspace is not ready or not synced',
+		},
+		{
+			displayName: 'Use Agent Plane',
+			name: 'useCompanionAgent',
+			type: 'boolean',
+			default: false,
+			description: 'Whether to resolve workingDirectory from Agent Plane before execution',
 		},
 	],
 };
