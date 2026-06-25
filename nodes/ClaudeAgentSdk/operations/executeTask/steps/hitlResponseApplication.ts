@@ -11,7 +11,7 @@ import { applyResumeQueryOptions } from './resumeQueryOptions';
 type ApprovalConfig = ReturnType<typeof parseApprovalConfig>;
 type BackendMode = 'localCli' | 'managedAgent';
 
-export const HITL_APPROVAL_RESUME_PROMPT_MARKER = '<HITL_APPROVAL_RESUME>' as const;
+const HITL_APPROVAL_RESUME_PROMPT_MARKER = '<HITL_APPROVAL_RESUME>' as const;
 export const HITL_APPROVAL_RESUME_PROMPT = HITL_APPROVAL_RESUME_PROMPT_MARKER;
 export const HITL_APPROVAL_RESUME_PROMPT_CLASSIFICATION =
 	'control_plane_hitl_approval_resume' as const;
