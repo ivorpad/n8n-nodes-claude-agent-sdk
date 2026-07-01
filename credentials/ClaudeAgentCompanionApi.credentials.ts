@@ -5,9 +5,10 @@ import type {
 	INodeProperties,
 } from 'n8n-workflow';
 
-import { PHOENIX_COMPANION_LOCAL_BASE_URL } from '../nodes/ClaudeAgentSdk/companion/client';
+import { PHOENIX_COMPANION_BASE_URL } from '../nodes/ClaudeAgentSdk/companion/client';
 
-const shouldRestrictToSupportedNodes = () => process.env.N8N_DEV_RELOAD !== 'true';
+const shouldRestrictToSupportedNodes = () =>
+	process.env.N8N_DEV_RELOAD !== 'true' && !process.env.N8N_CUSTOM_EXTENSIONS;
 
 export class ClaudeAgentCompanionApi implements ICredentialType {
 	name = 'claudeAgentCompanionApi';
@@ -17,7 +18,11 @@ export class ClaudeAgentCompanionApi implements ICredentialType {
 		light: 'file:../nodes/ClaudeAgentSdk/claude-color.svg',
 		dark: 'file:../nodes/ClaudeAgentSdk/claude-color.svg',
 	} as const;
-	supportedNodes = ['claudeAgentSdk'];
+	supportedNodes = [
+		'claudeAgentSdk',
+		'CUSTOM.claudeAgentSdk',
+		'n8n-nodes-claude-agent-sdk.claudeAgentSdk',
+	];
 	restrictToSupportedNodes?: true;
 	authenticate: IAuthenticateGeneric = {
 		type: 'generic',
@@ -42,7 +47,7 @@ export class ClaudeAgentCompanionApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			url: `${PHOENIX_COMPANION_LOCAL_BASE_URL}/api/n8n/credential-test`,
+			url: `${PHOENIX_COMPANION_BASE_URL}/api/n8n/credential-test`,
 			method: 'GET',
 		},
 	};

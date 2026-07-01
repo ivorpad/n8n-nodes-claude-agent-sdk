@@ -6,7 +6,7 @@ import { ClaudeApi } from '../../../../credentials/ClaudeApi.credentials';
 import { AlibabaCodingPlanApi } from '../../../../credentials/AlibabaCodingPlanApi.credentials';
 import { ClaudeAgentSdkLiteLlmApi } from '../../../../credentials/ClaudeAgentSdkLiteLlmApi.credentials';
 import { ClaudeAgentCompanionApi } from '../../../../credentials/ClaudeAgentCompanionApi.credentials';
-import { PHOENIX_COMPANION_LOCAL_BASE_URL } from '../../companion/client';
+import { PHOENIX_COMPANION_BASE_URL } from '../../companion/client';
 
 const SDK_PROVIDER_BASE = 'claudeAgentSdkProviderApi';
 
@@ -54,10 +54,14 @@ describe('Credential properties', () => {
 		expect(propertyNames).toEqual(['apiKey']);
 		expect(propertyNames).not.toContain('baseUrl');
 		expect(propertyNames).not.toContain('n8nApiKey');
-		expect(credential.supportedNodes).toEqual(['claudeAgentSdk']);
+		expect(credential.supportedNodes).toEqual([
+			'claudeAgentSdk',
+			'CUSTOM.claudeAgentSdk',
+			'n8n-nodes-claude-agent-sdk.claudeAgentSdk',
+		]);
 		expect(credential.restrictToSupportedNodes).toBe(true);
 		expect(credential.test.request.url).toBe(
-			`${PHOENIX_COMPANION_LOCAL_BASE_URL}/api/n8n/credential-test`,
+			`${PHOENIX_COMPANION_BASE_URL}/api/n8n/credential-test`,
 		);
 		expect(credential.authenticate).toMatchObject({
 			properties: {
@@ -70,6 +74,12 @@ describe('Credential properties', () => {
 
 	it('omits supported-node restriction under the n8n custom dev loader', () => {
 		vi.stubEnv('N8N_DEV_RELOAD', 'true');
+
+		expect(new ClaudeAgentCompanionApi().restrictToSupportedNodes).toBeUndefined();
+	});
+
+	it('omits supported-node restriction under the n8n custom extension loader', () => {
+		vi.stubEnv('N8N_CUSTOM_EXTENSIONS', '/opt/n8n-git-nodes/node_modules');
 
 		expect(new ClaudeAgentCompanionApi().restrictToSupportedNodes).toBeUndefined();
 	});
