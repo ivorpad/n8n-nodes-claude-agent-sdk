@@ -30,7 +30,7 @@ export const STREAMING_CONTENT_TYPE_OPTIONS: INodePropertyOptions[] = [
 	{
 		name: "System Messages (All)",
 		value: "system",
-		description: "Stream all system messages (init, status, api_retry, hook_response, task lifecycle, permission_denied, compact_boundary)",
+		description: "Stream all system messages (init, status, api_retry, informational, model refusal, task lifecycle, permission_denied, worker shutdown)",
 	},
 	{
 		name: "System: Init",
@@ -46,6 +46,16 @@ export const STREAMING_CONTENT_TYPE_OPTIONS: INodePropertyOptions[] = [
 		name: "System: API Retry",
 		value: "system:api_retry",
 		description: "Stream API retry notices, including overloaded and rate_limit causes",
+	},
+	{
+		name: "System: Informational",
+		value: "system:informational",
+		description: "Stream informational system banners and hook feedback",
+	},
+	{
+		name: "System: Model Refusal (No Fallback)",
+		value: "system:model_refusal_no_fallback",
+		description: "Stream model refusal notices when no fallback model is available",
 	},
 	{
 		name: "Stream Events (Deltas)",
@@ -86,6 +96,11 @@ export const STREAMING_CONTENT_TYPE_OPTIONS: INodePropertyOptions[] = [
 		name: "System: Permission Denied",
 		value: "system:permission_denied",
 		description: "Stream SDK permission denial messages",
+	},
+	{
+		name: "System: Worker Shutting Down",
+		value: "system:worker_shutting_down",
+		description: "Stream remote worker graceful shutdown notices",
 	},
 	{
 		name: "Prompt Suggestions",

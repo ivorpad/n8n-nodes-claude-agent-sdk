@@ -49,7 +49,7 @@ function buildStandardThinkingSetup(args: {
 			args.legacyMaxThinkingTokens > 0
 		) {
 			debugWarn(
-				'[Claude Agent SDK] Fixed thinking budgets are not supported on Fable 5 / Opus 4.7+. Using adaptive thinking and effort instead.',
+				'[Claude Agent SDK] Fixed thinking budgets are not supported on Sonnet 5 / Fable 5 / Opus 4.7+. Using adaptive thinking and effort instead.',
 			);
 		}
 		return {

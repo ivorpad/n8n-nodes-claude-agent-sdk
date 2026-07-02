@@ -221,6 +221,47 @@ describe('buildQuerySetup', () => {
 		expect(setup.queryOptions.maxThinkingTokens).toBeUndefined();
 	});
 
+	it('defaults Sonnet 5 to adaptive thinking without a fixed budget', async () => {
+		const setup = await setupQuery({
+			params: {
+				model: 'claude-sonnet-5',
+				thinkingMode: 'default',
+			},
+		});
+
+		expect(setup.queryOptions).toMatchObject({
+			model: 'claude-sonnet-5',
+			thinking: { type: 'adaptive' },
+		});
+		expect(setup.queryOptions.maxThinkingTokens).toBeUndefined();
+	});
+
+	it('suppresses fixed thinking budgets for Sonnet 5 and keeps xhigh effort', async () => {
+		process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = 'true';
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+		const setup = await setupQuery({
+			params: {
+				model: 'claude-sonnet-5',
+				thinkingMode: 'enabled',
+				thinkingBudgetTokens: 64000,
+				effort: 'xhigh',
+			},
+			additionalOptions: {
+				maxThinkingTokens: 32000,
+			},
+		});
+
+		expect(setup.queryOptions).toMatchObject({
+			model: 'claude-sonnet-5',
+			thinking: { type: 'adaptive' },
+			effort: 'xhigh',
+		});
+		expect(setup.queryOptions.maxThinkingTokens).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Fixed thinking budgets are not supported'));
+		warnSpy.mockRestore();
+	});
+
 	it('suppresses fixed thinking budgets for Opus 4.8 and keeps effort', async () => {
 		process.env.CLAUDE_AGENT_SDK_DEBUG_LOGS = 'true';
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

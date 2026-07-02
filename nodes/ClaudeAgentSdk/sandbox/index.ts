@@ -8,6 +8,7 @@
 import type { IExecuteFunctions } from 'n8n-workflow';
 import type {
 	SandboxConfig,
+	SandboxCredentialsConfig,
 	SandboxNetworkConfig,
 	SandboxIgnoreViolationsConfig,
 } from './types';
@@ -50,6 +51,7 @@ export function parseSandboxConfig(
 				sandboxFailIfUnavailable?: boolean;
 				sandboxAllowUnsandboxed?: boolean;
 				sandboxWeakerNested?: boolean;
+				sandboxAllowAppleEvents?: boolean;
 			};
 		};
 		networkOptions?: {
@@ -61,6 +63,12 @@ export function parseSandboxConfig(
 				sandboxDeniedDomains?: string;
 				sandboxHttpProxyPort?: number;
 				sandboxSocksProxyPort?: number;
+			};
+		};
+		credentialDenials?: {
+			settings?: {
+				sandboxDeniedCredentialFiles?: string;
+				sandboxDeniedCredentialEnvVars?: string;
 			};
 		};
 		violationIgnores?: {
@@ -86,6 +94,7 @@ export function parseSandboxConfig(
 	const allowUnsandboxedCommands = (commandSettings.sandboxAllowUnsandboxed ?? false) as boolean;
 	const failIfUnavailable = (commandSettings.sandboxFailIfUnavailable ?? true) as boolean;
 	const enableWeakerNestedSandbox = (commandSettings.sandboxWeakerNested ?? false) as boolean;
+	const allowAppleEvents = (commandSettings.sandboxAllowAppleEvents ?? false) as boolean;
 
 	const networkSettings = sandboxConfig.networkOptions?.settings ?? {};
 	const allowLocalBinding = (networkSettings.sandboxAllowLocalBinding ?? false) as boolean;
@@ -100,6 +109,10 @@ export function parseSandboxConfig(
 	const ignoreFilePatterns = (ignoreSettings.sandboxIgnoreFilePatterns ?? '') as string;
 	const ignoreNetworkPatterns = (ignoreSettings.sandboxIgnoreNetworkPatterns ?? '') as string;
 
+	const credentialSettings = sandboxConfig.credentialDenials?.settings ?? {};
+	const deniedCredentialFilesStr = (credentialSettings.sandboxDeniedCredentialFiles ?? '') as string;
+	const deniedCredentialEnvVarsStr = (credentialSettings.sandboxDeniedCredentialEnvVars ?? '') as string;
+
 	const excludedCommands = parseCommaSeparated(excludedCommandsStr);
 	const config: SandboxConfig = {
 		enabled: true,
@@ -110,6 +123,7 @@ export function parseSandboxConfig(
 		...(excludedCommands && { excludedCommands }),
 		...(allowUnsandboxedCommands && { allowUnsandboxedCommands: true }),
 		...(enableWeakerNestedSandbox && { enableWeakerNestedSandbox: true }),
+		...(allowAppleEvents && { allowAppleEvents: true }),
 	};
 
 	const allowUnixSockets = parseCommaSeparated(allowUnixSocketsStr);
@@ -126,6 +140,20 @@ export function parseSandboxConfig(
 	};
 	if (Object.keys(networkConfig).length > 0) {
 		config.network = networkConfig;
+	}
+
+	const deniedCredentialFiles = parseCommaSeparated(deniedCredentialFilesStr);
+	const deniedCredentialEnvVars = parseCommaSeparated(deniedCredentialEnvVarsStr);
+	const credentialConfig: SandboxCredentialsConfig = {
+		...(deniedCredentialFiles && {
+			files: deniedCredentialFiles.map((path) => ({ path, mode: 'deny' as const })),
+		}),
+		...(deniedCredentialEnvVars && {
+			envVars: deniedCredentialEnvVars.map((name) => ({ name, mode: 'deny' as const })),
+		}),
+	};
+	if (Object.keys(credentialConfig).length > 0) {
+		config.credentials = credentialConfig;
 	}
 
 	const filePatterns = parseCommaSeparated(ignoreFilePatterns);

@@ -1,14 +1,19 @@
 import type { INodePropertyOptions } from 'n8n-workflow';
 
-// Anthropic's current API lineup (June 2026): Fable 5 is the frontier tier
-// above Opus. The picker lists explicit IDs only — tier aliases (opus/sonnet/
-// haiku) were dropped because they duplicated these entries on the Anthropic
-// provider, while non-Anthropic providers route through their own per-tier
-// override dropdowns. Alias values saved in older workflows still execute
-// (the CLI resolves them) and keep their reasoning fields via the constants
-// below.
+// Anthropic's current API lineup (July 2026): Sonnet 5 is the default Sonnet
+// tier and has native 1M context. The picker lists explicit IDs only — tier
+// aliases (opus/sonnet/haiku) were dropped because they duplicated these
+// entries on the Anthropic provider, while non-Anthropic providers route
+// through their own per-tier override dropdowns. Alias values saved in older
+// workflows still execute (the CLI resolves them) and keep their reasoning
+// fields via the constants below.
 export const CURRENT_CLAUDE_MODEL_OPTIONS = [
 	{ name: 'Default', value: '', description: 'Provider default model' },
+	{
+		name: 'Claude Sonnet 5',
+		value: 'claude-sonnet-5',
+		description: 'Default Sonnet tier with native 1M context',
+	},
 	{
 		name: 'Claude Fable 5',
 		value: 'claude-fable-5',
@@ -28,6 +33,8 @@ const FABLE_MODELS = ['fable', 'claude-fable-5'] as const;
 // before the picker consolidation keep their reasoning fields visible.
 export const ADAPTIVE_THINKING_MODELS = [
 	...FABLE_MODELS,
+	'sonnet',
+	'claude-sonnet-5',
 	'opus',
 	'claude-opus-4-8',
 	'claude-opus-4-7',

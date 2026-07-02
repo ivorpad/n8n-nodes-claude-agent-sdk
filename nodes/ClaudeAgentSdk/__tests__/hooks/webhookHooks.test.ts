@@ -12,6 +12,10 @@ const BASE_CONFIG: HookHandlerConfig = {
 };
 
 const HOOK_INPUT = {
+	session_id: 'session_1',
+	transcript_path: '/tmp/transcript.jsonl',
+	cwd: '/workspace/project',
+	prompt_id: 'prompt_123',
 	hook_event_name: 'PreToolUse',
 	tool_name: 'Bash',
 	tool_input: { command: 'pwd' },
@@ -52,6 +56,21 @@ describe('buildHookHandlers webhook/command output validation', () => {
 			...BASE_CONFIG,
 			failBehaviour: 'continue',
 		})).resolves.toEqual({ continue: true });
+	});
+
+	it('forwards SDK prompt_id in webhook payloads', async () => {
+		const fetchMock = vi.fn(async () => new Response(
+			JSON.stringify({ continue: true }),
+			{ status: 200 },
+		));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(runHook(BASE_CONFIG)).resolves.toEqual({ continue: true });
+
+		const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+		const payload = JSON.parse(String(request?.body)) as Record<string, unknown>;
+		expect(payload.prompt_id).toBe('prompt_123');
+		expect(payload.tool_use_id).toBe('toolu_1');
 	});
 
 	it('blocks wrong-shape webhook JSON according to failBehaviour', async () => {

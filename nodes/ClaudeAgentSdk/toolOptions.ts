@@ -25,6 +25,7 @@ interface ToolOptionsNodeParams {
 // buildToolOptions, so removals do not break saved workflows.
 export const TOOL_OPTIONS: INodePropertyOptions[] = [
 	{ name: 'AskUserQuestion', value: 'AskUserQuestion', description: 'Prompt user for input' },
+	{ name: 'Artifact', value: 'Artifact', description: 'Create or update a hosted artifact' },
 	{ name: 'Bash', value: 'Bash', description: 'Execute shell commands' },
 	{ name: 'CronCreate', value: 'CronCreate', description: 'Create a scheduled cron task' },
 	{ name: 'CronDelete', value: 'CronDelete', description: 'Delete a scheduled cron task' },
@@ -38,12 +39,14 @@ export const TOOL_OPTIONS: INodePropertyOptions[] = [
 	{ name: 'Grep', value: 'Grep', description: 'Search in files' },
 	{ name: 'KillShell', value: 'KillShell', description: 'Kill background shell processes (legacy — superseded by TaskStop)' },
 	{ name: 'ListMcpResources', value: 'ListMcpResources', description: 'List resources from connected MCP servers' },
-	{ name: 'Monitor', value: 'Monitor', description: 'Monitor long-running background work' },
+	{ name: 'Monitor', value: 'Monitor', description: 'Monitor long-running background work or websocket event streams' },
 	{ name: 'NotebookEdit', value: 'NotebookEdit', description: 'Edit Jupyter notebooks' },
 	{ name: 'PushNotification', value: 'PushNotification', description: 'Send a push notification' },
 	{ name: 'Read', value: 'Read', description: 'Read files' },
 	{ name: 'ReadMcpResource', value: 'ReadMcpResource', description: 'Read a resource from a connected MCP server' },
+	{ name: 'ReadMcpResourceDir', value: 'ReadMcpResourceDir', description: 'List a directory resource from a connected MCP server' },
 	{ name: 'RemoteTrigger', value: 'RemoteTrigger', description: 'Trigger a remote workflow/agent' },
+	{ name: 'ReportFindings', value: 'ReportFindings', description: 'Report verified code-review findings' },
 	{ name: 'REPL', value: 'REPL', description: 'Run code in the sandboxed JavaScript REPL' },
 	{ name: 'ScheduleWakeup', value: 'ScheduleWakeup', description: 'Schedule a future wake-up for the agent' },
 	{ name: 'Skill', value: 'Skill', description: 'Use agent skills (deprecated in allowed tools — prefer the skills option)' },

@@ -21,6 +21,21 @@ function createContext(overrides: Record<string, unknown>) {
 }
 
 describe('generatePythonSdkScript — Fable 5 thinking', () => {
+	it('defaults Sonnet 5 to adaptive thinking and supports xhigh effort', () => {
+		const ctx = createContext({
+			model: 'claude-sonnet-5',
+			effort: 'xhigh',
+			additionalOptions: { maxThinkingTokens: 32000 },
+		});
+
+		const script = generatePythonSdkScript(ctx, 0).json.script as string;
+
+		expect(script).toContain('model="claude-sonnet-5"');
+		expect(script).toContain('ThinkingConfigAdaptive(type="adaptive")');
+		expect(script).toContain('effort="xhigh"');
+		expect(script).not.toContain('max_thinking_tokens');
+	});
+
 	it('defaults Fable 5 to adaptive thinking', () => {
 		const ctx = createContext({ model: 'claude-fable-5' });
 

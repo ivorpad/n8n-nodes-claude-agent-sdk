@@ -34,8 +34,17 @@ export type {
 	HookCallback,
 	SettingSource,
 	SandboxSettings,
+	SandboxCredentialsConfig,
 	ModelUsage,
 	NonNullableUsage,
+	Query,
+	ModelInfo,
+	SDKRateLimitInfo,
+	SDKInformationalMessage,
+	SDKModelRefusalNoFallbackMessage,
+	SDKWorkerShuttingDownMessage,
+	SDKPermissionDeniedMessage,
+	BaseHookInput,
 } from '@anthropic-ai/claude-agent-sdk';
 
 /**
@@ -126,6 +135,19 @@ type UpstreamQuery = UpstreamSdkModule['query'];
 export type UpstreamTool = UpstreamSdkModule['tool'];
 export type UpstreamCreateSdkMcpServer = UpstreamSdkModule['createSdkMcpServer'];
 
+type QueryControlMethods = Pick<
+	UpstreamClaudeAgentSdk.Query,
+	| 'interrupt'
+	| 'setPermissionMode'
+	| 'setMcpPermissionModeOverride'
+	| 'setModel'
+	| 'setMaxThinkingTokens'
+	| 'applyFlagSettings'
+	| 'initializationResult'
+	| 'reinitialize'
+	| 'rewindFiles'
+>;
+
 /**
  * Input type for the query-backed session shim.
  * Supports both simple string and structured message formats.
@@ -162,12 +184,12 @@ export interface SessionHandle {
 
 /**
  * One-shot query handle returned by adapter.promptOnce().
- * Some backends expose active execution controls such as interrupt().
+ * Backends may expose the upstream Query control surface when they are backed
+ * by the local SDK stream. Managed backends can implement a subset.
  */
-export interface QueryHandle extends AsyncIterable<NodeStreamMessage> {
-	interrupt?(): Promise<void>;
+export type QueryHandle = AsyncIterable<NodeStreamMessage> & Partial<QueryControlMethods> & {
 	close?(): void | Promise<void>;
-}
+};
 
 /**
  * SDK Adapter interface.

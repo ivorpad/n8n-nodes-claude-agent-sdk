@@ -21,6 +21,11 @@ const KNOWN_NODE_MESSAGE_TYPES = [
 	'session_files',
 ] as const satisfies ReadonlyArray<NodeStreamMessage['type']>;
 
+type KnownNodeMessageType = (typeof KNOWN_NODE_MESSAGE_TYPES)[number];
+type UnknownNodeMessageType = Exclude<NodeStreamMessage['type'], KnownNodeMessageType>;
+const _nodeMessageTypeParity: UnknownNodeMessageType extends never ? true : never = true;
+void _nodeMessageTypeParity;
+
 /**
  * True when the value is one of the explicitly-typed stream messages.
  * Unknown `{type: string}` frames are NOT rejected by callers — they still

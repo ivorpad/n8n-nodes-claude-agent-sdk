@@ -15,6 +15,12 @@ import type { SandboxSettings } from '../sdk/types';
 export type SandboxNetworkConfig = NonNullable<SandboxSettings['network']>;
 
 /**
+ * Credential-denial configuration (canonical SDK shape: file/directory paths
+ * and environment-variable names, each with mode: 'deny').
+ */
+export type SandboxCredentialsConfig = NonNullable<SandboxSettings['credentials']>;
+
+/**
  * Violation-suppression map (canonical SDK shape: open record of pattern
  * lists keyed by violation category).
  */

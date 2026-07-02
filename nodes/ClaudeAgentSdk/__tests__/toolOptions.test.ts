@@ -19,6 +19,18 @@ describe('tool options', () => {
 		]));
 	});
 
+	it('includes built-in tools added by current SDK schemas', () => {
+		const values = TOOL_OPTIONS.map((option) => option.value);
+
+		expect(values).toEqual(expect.arrayContaining([
+			'Artifact',
+			'ReadMcpResourceDir',
+			'ReportFindings',
+		]));
+		expect(TOOL_OPTIONS.find((option) => option.value === 'Monitor')?.description)
+			.toContain('websocket');
+	});
+
 	it('adds discovered MCP tools for governed selectors', () => {
 		const options = buildToolOptions(
 			{},

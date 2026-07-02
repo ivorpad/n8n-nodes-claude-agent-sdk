@@ -254,10 +254,13 @@ type StreamContent =
  * - 'system:status': SDKStatusMessage
  * - 'system:hook_response': SDKHookResponseMessage
  * - 'system:api_retry': SDKAPIRetryMessage
+ * - 'system:informational': SDKInformationalMessage
+ * - 'system:model_refusal_no_fallback': SDKModelRefusalNoFallbackMessage
  * - 'system:task_started': SDKTaskStartedMessage
  * - 'system:task_updated': SDKTaskUpdatedMessage
  * - 'system:task_progress': SDKTaskProgressMessage
  * - 'system:task_notification': SDKTaskNotificationMessage
+ * - 'system:worker_shutting_down': SDKWorkerShuttingDownMessage
  * - 'stream_event': SDKPartialAssistantMessage (real-time streaming deltas)
  * - 'tool_progress': SDKToolProgressMessage
  * - 'auth_status': SDKAuthStatusMessage
@@ -284,12 +287,15 @@ export type StreamContentType =
 	| 'system:status'    // SDKStatusMessage
 	| 'system:hook_response' // SDKHookResponseMessage
 	| 'system:api_retry' // SDKAPIRetryMessage
+	| 'system:informational' // SDKInformationalMessage
+	| 'system:model_refusal_no_fallback' // SDKModelRefusalNoFallbackMessage
 	| 'system:task_started'      // SDKTaskStartedMessage
 	| 'system:task_updated'      // SDKTaskUpdatedMessage
 	| 'system:task_progress'     // SDKTaskProgressMessage
 	| 'system:task_notification' // SDKTaskNotificationMessage
 	| 'system:session_state_changed' // SDKSessionStateChangedMessage
 	| 'system:permission_denied' // SDKPermissionDeniedMessage
+	| 'system:worker_shutting_down' // SDKWorkerShuttingDownMessage
 	| 'stream_event'     // SDKPartialAssistantMessage
 	| 'tool_progress'    // SDKToolProgressMessage
 	| 'auth_status'      // SDKAuthStatusMessage

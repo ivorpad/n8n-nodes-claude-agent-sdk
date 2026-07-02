@@ -26,8 +26,10 @@ describe('SandboxConfig', () => {
 			enableSandbox: false,
 			commandOptions: {
 				settings: {
+					sandboxAllowAppleEvents: false,
 					sandboxAutoAllowBash: false,
 					sandboxExcludedCommands: '',
+					sandboxFailIfUnavailable: true,
 					sandboxAllowUnsandboxed: false,
 					sandboxWeakerNested: false,
 				},
@@ -39,6 +41,12 @@ describe('SandboxConfig', () => {
 					sandboxAllowAllUnixSockets: false,
 					sandboxHttpProxyPort: 0,
 					sandboxSocksProxyPort: 0,
+				},
+			},
+			credentialDenials: {
+				settings: {
+					sandboxDeniedCredentialFiles: '',
+					sandboxDeniedCredentialEnvVars: '',
 				},
 			},
 			violationIgnores: {
@@ -53,6 +61,7 @@ describe('SandboxConfig', () => {
 			enableSandbox?: boolean;
 			commandOptions?: { settings?: Record<string, unknown> };
 			networkOptions?: { settings?: Record<string, unknown> };
+			credentialDenials?: { settings?: Record<string, unknown> };
 			violationIgnores?: { settings?: Record<string, unknown> };
 		};
 
@@ -69,6 +78,12 @@ describe('SandboxConfig', () => {
 				settings: {
 					...defaults.networkOptions.settings,
 					...(overrideObj.networkOptions?.settings ?? {}),
+				},
+			},
+			credentialDenials: {
+				settings: {
+					...defaults.credentialDenials.settings,
+					...(overrideObj.credentialDenials?.settings ?? {}),
 				},
 			},
 			violationIgnores: {
@@ -199,6 +214,41 @@ describe('SandboxConfig', () => {
 			});
 		});
 
+		it('should parse Apple Events and credential denial settings', () => {
+			setupMockParams({
+				enableSandbox: true,
+				commandOptions: {
+					settings: {
+						sandboxAllowAppleEvents: true,
+					},
+				},
+				credentialDenials: {
+					settings: {
+						sandboxDeniedCredentialFiles: '~/.aws/credentials, .env',
+						sandboxDeniedCredentialEnvVars: 'AWS_SECRET_ACCESS_KEY, GITHUB_TOKEN',
+					},
+				},
+			});
+
+			const result = parseSandboxConfig(mockExecFunctions, 0);
+
+			expect(result).toEqual({
+				enabled: true,
+				autoAllowBashIfSandboxed: false,
+				allowAppleEvents: true,
+				credentials: {
+					files: [
+						{ path: '~/.aws/credentials', mode: 'deny' },
+						{ path: '.env', mode: 'deny' },
+					],
+					envVars: [
+						{ name: 'AWS_SECRET_ACCESS_KEY', mode: 'deny' },
+						{ name: 'GITHUB_TOKEN', mode: 'deny' },
+					],
+				},
+			});
+		});
+
 		it('should parse network settings', () => {
 			setupMockParams({
 				enableSandbox: true,
@@ -318,6 +368,7 @@ describe('SandboxConfig', () => {
 				commandOptions: {
 					settings: {
 						sandboxAutoAllowBash: true,
+						sandboxAllowAppleEvents: true,
 						sandboxExcludedCommands: 'docker, kubectl',
 						sandboxAllowUnsandboxed: true,
 						sandboxWeakerNested: true,
@@ -327,8 +378,16 @@ describe('SandboxConfig', () => {
 					settings: {
 						sandboxAllowLocalBinding: true,
 						sandboxAllowUnixSockets: '/var/run/docker.sock',
+						sandboxAllowedDomains: 'api.github.com',
+						sandboxDeniedDomains: '169.254.169.254',
 						sandboxHttpProxyPort: 8080,
 						sandboxSocksProxyPort: 1080,
+					},
+				},
+				credentialDenials: {
+					settings: {
+						sandboxDeniedCredentialFiles: '~/.aws/credentials',
+						sandboxDeniedCredentialEnvVars: 'AWS_SECRET_ACCESS_KEY',
 					},
 				},
 				violationIgnores: {
@@ -347,11 +406,18 @@ describe('SandboxConfig', () => {
 				excludedCommands: ['docker', 'kubectl'],
 				allowUnsandboxedCommands: true,
 				enableWeakerNestedSandbox: true,
+				allowAppleEvents: true,
 				network: {
 					allowLocalBinding: true,
 					allowUnixSockets: ['/var/run/docker.sock'],
+					allowedDomains: ['api.github.com'],
+					deniedDomains: ['169.254.169.254'],
 					httpProxyPort: 8080,
 					socksProxyPort: 1080,
+				},
+				credentials: {
+					files: [{ path: '~/.aws/credentials', mode: 'deny' }],
+					envVars: [{ name: 'AWS_SECRET_ACCESS_KEY', mode: 'deny' }],
 				},
 				ignoreViolations: {
 					file: ['/tmp/*'],

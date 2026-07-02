@@ -95,9 +95,9 @@ export const additionalOptionsProperty: INodeProperties = {
 			type: 'multiOptions',
 			options: [
 				{
-					name: '1M Context Window',
+					name: '1M Context Window (Legacy Beta)',
 					value: 'context-1m-2025-08-07',
-					description: 'Enable 1M context window beta',
+					description: 'Enable the 1M context beta for older Sonnet 4/4.5 models. Sonnet 5 uses native 1M context and does not need this beta.',
 				},
 			],
 			default: [],

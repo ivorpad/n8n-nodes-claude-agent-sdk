@@ -123,7 +123,7 @@ export const executeTaskCoreProperties: INodeProperties[] = [
 			{ name: 'Adaptive', value: 'adaptive', description: 'Claude decides when and how much to think (recommended)' },
 			{ name: 'Default (No Override)', value: 'default' },
 			{ name: 'Disabled', value: 'disabled', description: 'No extended thinking (on Fable 5 the thinking field is omitted — explicit disable is rejected)' },
-			{ name: 'Enabled (Budget)', value: 'enabled', description: 'Fixed thinking token budget (removed on Fable 5 / Opus 4.7+; prefer Effort)' },
+			{ name: 'Enabled (Budget)', value: 'enabled', description: 'Fixed thinking token budget (removed on Sonnet 5 / Fable 5 / Opus 4.7+; prefer Effort)' },
 		],
 		default: 'default',
 		displayOptions: {
@@ -133,7 +133,7 @@ export const executeTaskCoreProperties: INodeProperties[] = [
 				model: Array.from(ADAPTIVE_THINKING_MODELS),
 			},
 		},
-		description: 'Controls Claude thinking behavior. Adaptive is the primary path for Fable 5 and Opus 4.7+.',
+		description: 'Controls Claude thinking behavior. Adaptive is the primary path for Sonnet 5, Fable 5, and Opus 4.7+.',
 	},
 	{
 		displayName: 'Thinking Budget Tokens',
@@ -159,9 +159,9 @@ export const executeTaskCoreProperties: INodeProperties[] = [
 			{ name: 'Default (No Override)', value: '' },
 			{ name: 'High', value: 'high', description: 'Deep reasoning (SDK default)' },
 			{ name: 'Low', value: 'low', description: 'Minimal thinking, fastest responses' },
-			{ name: 'Max', value: 'max', description: 'Maximum effort (Fable 5 / Opus 4.6+)' },
+			{ name: 'Max', value: 'max', description: 'Maximum effort (Fable 5 / Opus 4.6+ / select Sonnet models)' },
 			{ name: 'Medium', value: 'medium', description: 'Moderate thinking' },
-			{ name: 'X High', value: 'xhigh', description: 'Deeper than high (Fable 5 / Opus 4.7+)' },
+			{ name: 'X High', value: 'xhigh', description: 'Deeper than high (Sonnet 5 / Fable 5 / Opus 4.7+)' },
 		],
 		default: '',
 		displayOptions: {
@@ -171,7 +171,7 @@ export const executeTaskCoreProperties: INodeProperties[] = [
 				model: Array.from(ADAPTIVE_THINKING_MODELS),
 			},
 		},
-		description: 'Controls reasoning effort. Works with adaptive thinking on Fable 5 and Opus 4.7+.',
+		description: 'Controls reasoning effort. Works with adaptive thinking on Sonnet 5, Fable 5, and Opus 4.7+.',
 	},
 	{
 		displayName: 'Fast Mode (Research Preview)',
