@@ -153,7 +153,7 @@ describe('node properties compatibility', () => {
 		expect(values).toEqual(expect.arrayContaining(['', 'low', 'medium', 'high', 'xhigh', 'max']));
 	});
 
-	it('exposes the consolidated Anthropic model lineup (Default + 4 current models)', () => {
+	it('exposes the consolidated Anthropic model lineup (Default + 5 current models)', () => {
 		const model = findProperty(executeTaskCoreProperties, 'model') as {
 			options?: Array<{ value: string }>;
 		};
@@ -161,6 +161,7 @@ describe('node properties compatibility', () => {
 
 		expect(values).toEqual([
 			'',
+			'claude-sonnet-5',
 			'claude-fable-5',
 			'claude-opus-4-8',
 			'claude-sonnet-4-6',
