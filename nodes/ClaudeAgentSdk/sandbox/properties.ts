@@ -56,7 +56,7 @@ export const sandboxProperties: INodeProperties[] = [
 								name: 'sandboxAllowAppleEvents',
 								type: 'boolean',
 								default: false,
-								description: 'macOS only. Whether to allow sandboxed commands to send Apple Events for open, osascript, and browser auth flows. This reduces code-execution isolation.',
+								description: 'Whether to allow sandboxed commands to send Apple Events for open, osascript, and browser auth flows (macOS only). This reduces code-execution isolation.',
 							},
 							{
 								displayName: 'Allow Unsandboxed Commands',
