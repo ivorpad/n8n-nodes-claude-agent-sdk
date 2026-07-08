@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-claude-agent-sdk",
-	"version": "0.2.22",
+	"version": "0.2.23",
 	"description": "n8n nodes for Claude Agent SDK integration",
 	"license": "MIT",
 	"packageManager": "pnpm@10.33.0",
