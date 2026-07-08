@@ -34,6 +34,9 @@ jobs:
       - name: Run dead-code checks
         run: 'pnpm run deadcode'
 
+      - name: Run structural consistency checks
+        run: 'pnpm run konsistent'
+
       - name: Run build
         run: 'pnpm run build'
 

@@ -78,6 +78,9 @@ importers:
       knip:
         specifier: ^6.3.1
         version: 6.4.1(@emnapi/core@1.8.1)(@emnapi/runtime@1.8.1)
+      konsistent:
+        specifier: 1.0.0-beta.1
+        version: 1.0.0-beta.1
       n8n-workflow:
         specifier: ^2.25.0
         version: 2.25.0(zod@4.3.6)
@@ -523,6 +526,13 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@konsistent/convention@1.0.0-beta.1':
+    resolution: {integrity: sha512-MidQWenua30khP6/8CDWsy6vVBQQBFj9SgC4IKE8r3+6fRWrnBklWsT9r7ndGC/VQtlb+8WMZUIRIBhZK26k6w==}
+    engines: {node: '>=22.11.0'}
+    hasBin: true
+    peerDependencies:
+      zod: ^4
 
   '@microsoft/agentmesh-sdk@3.1.0':
     resolution: {integrity: sha512-Z6lFb3bI7ys6JP9zu9O4VpxHgvMc+P0s6Vkl5F2+chw5Xz5ug2uOiUqxmu/JI8YjTc5+wBpmXcU5O2TOwU0sgg==}
@@ -1397,6 +1407,9 @@ packages:
   charenc@0.0.2:
     resolution: {integrity: sha512-yrLQ/yVUFXkzg7EDQsPieE/53+0RlaWTs+wBrvW36cyilJ2SaDWfl4Yj7MtLTXleV9uEKefbAGUPv2/iWSooRA==}
 
+  citty@0.2.2:
+    resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
+
   clean-stack@3.0.1:
     resolution: {integrity: sha512-lR9wNiMRcVQjSB3a7xXGLuz4cr4wJuuXlaAEbRutGowQTmlp7R72/DOgN21e8jdwblMWl9UOJMJXarX94pzKdg==}
     engines: {node: '>=10'}
@@ -2049,6 +2062,11 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
+  konsistent@1.0.0-beta.1:
+    resolution: {integrity: sha512-1izi+r5Jqoz9gEzS/7l6tkBoHhRaDerAovjBTxlwyUzAVDAxmj6QL84H8mN5aoi9rh1eloO0s12C5M2L+o3SFg==}
+    engines: {node: '>=22.11.0'}
+    hasBin: true
+
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
@@ -2424,6 +2442,10 @@ packages:
 
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
+
+  resolve.exports@2.0.3:
+    resolution: {integrity: sha512-OcXjMsGdhL4XnbShKpAcSqPMzQoYkYyhbEaeSko47MjRP9NfEQMhZkXL1DoFlt9LWQn4YttrdnV6X2OiyzBi+A==}
+    engines: {node: '>=10'}
 
   ret@0.5.0:
     resolution: {integrity: sha512-I1XxrZSQ+oErkRR4jYbAyEEu2I0avBvvMM5JN+6EBprOGRCs63ENqZ3vjavq8fBw2+62G5LF5XelKwuJpcvcxw==}
@@ -3184,6 +3206,12 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@konsistent/convention@1.0.0-beta.1(zod@4.3.6)':
+    dependencies:
+      citty: 0.2.2
+      jiti: 2.6.1
+      zod: 4.3.6
 
   '@microsoft/agentmesh-sdk@3.1.0':
     dependencies:
@@ -3992,6 +4020,8 @@ snapshots:
 
   charenc@0.0.2: {}
 
+  citty@0.2.2: {}
+
   clean-stack@3.0.1:
     dependencies:
       escape-string-regexp: 4.0.0
@@ -4707,6 +4737,16 @@ snapshots:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
+  konsistent@1.0.0-beta.1:
+    dependencies:
+      '@konsistent/convention': 1.0.0-beta.1(zod@4.3.6)
+      citty: 0.2.2
+      picocolors: 1.1.1
+      resolve.exports: 2.0.3
+      tinyglobby: 0.2.17
+      typescript: 5.9.2
+      zod: 4.3.6
+
   levn@0.4.1:
     dependencies:
       prelude-ls: 1.2.1
@@ -5098,6 +5138,8 @@ snapshots:
   resolve-from@4.0.0: {}
 
   resolve-pkg-maps@1.0.0: {}
+
+  resolve.exports@2.0.3: {}
 
   ret@0.5.0: {}
 

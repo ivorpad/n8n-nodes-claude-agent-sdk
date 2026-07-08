@@ -1,0 +1,105 @@
+{
+  "$schema": "node_modules/konsistent/konsistent.schema.json",
+  "version": "v1",
+  "conventions": [
+    {
+      "name": "credentials-export-matching-class",
+      "description": "Credential files must export a credential class with the same name as the file stem.",
+      "paths": "credentials/{credentialName}.credentials.ts",
+      "must": {
+        "haveType": "file",
+        "exportClasses": [{ "name": "${credentialName}" }]
+      }
+    },
+    {
+      "name": "top-level-nodes-export-matching-class",
+      "description": "Top-level node entry files must export a node class with the same name as their directory and file stem.",
+      "paths": "nodes/{nodeName}/${nodeName}.node.ts",
+      "must": {
+        "haveType": "file",
+        "exportClasses": [{ "name": "${nodeName}" }]
+      }
+    },
+    {
+      "name": "memory-nodes-export-matching-class",
+      "description": "Session memory node entry files must export a node class with the same name as their directory and file stem.",
+      "paths": "nodes/memory/{memoryNodeName}/${memoryNodeName}.node.ts",
+      "must": {
+        "haveType": "file",
+        "exportClasses": [{ "name": "${memoryNodeName}" }]
+      }
+    },
+    {
+      "name": "channel-companion-node-layout",
+      "description": "Channel companion adapters must keep the shared node, store, transport, and type file layout.",
+      "paths": "nodes/{channelNode:matches(^ClaudeAgent(Discord|Email|Gmail|Slack|Telegram)$)}",
+      "must": {
+        "haveType": "directory",
+        "haveFiles": [
+          "${channelNode}.node.ts",
+          "node/description.ts",
+          "node/execute.ts",
+          "node/webhook.ts",
+          "types.ts"
+        ]
+      }
+    },
+    {
+      "name": "channel-companion-description-export",
+      "description": "Channel companion description modules must export their named n8n node description constant.",
+      "paths": "nodes/{channelNode:matches(^ClaudeAgent(Discord|Email|Gmail|Slack|Telegram)$)}/node/description.ts",
+      "must": {
+        "haveType": "file",
+        "exportConstants": ["${channelNode.toCamelCase()}Description"]
+      }
+    },
+    {
+      "name": "channel-companion-execute-export",
+      "description": "Channel companion execute modules must export the n8n execute handler.",
+      "paths": "nodes/{channelNode:matches(^ClaudeAgent(Discord|Email|Gmail|Slack|Telegram)$)}/node/execute.ts",
+      "must": {
+        "haveType": "file",
+        "exportFunctions": ["execute"]
+      }
+    },
+    {
+      "name": "channel-companion-webhook-export",
+      "description": "Channel companion webhook modules must export the n8n webhook handler.",
+      "paths": "nodes/{channelNode:matches(^ClaudeAgent(Discord|Email|Gmail|Slack|Telegram)$)}/node/webhook.ts",
+      "must": {
+        "haveType": "file",
+        "exportFunctions": ["webhook"]
+      }
+    },
+    {
+      "name": "channel-companion-store-api",
+      "description": "Channel companion pending HITL stores must expose the shared pending-store API.",
+      "paths": [
+        "nodes/ClaudeAgentDiscord/store/PendingDiscordHitlStore.ts",
+        "nodes/ClaudeAgentEmail/store/PendingEmailHitlStore.ts",
+        "nodes/ClaudeAgentGmail/store/PendingGmailHitlStore.ts",
+        "nodes/ClaudeAgentSlack/store/PendingSlackHitlStore.ts",
+        "nodes/ClaudeAgentTelegram/store/PendingTelegramHitlStore.ts"
+      ],
+      "must": {
+        "haveType": "file",
+        "exportFunctions": ["savePending", "getPending", "consumePendingWithDecision"]
+      }
+    },
+    {
+      "name": "channel-companion-transport-api",
+      "description": "Channel companion transports must expose approval and question send functions.",
+      "paths": [
+        "nodes/ClaudeAgentDiscord/transport/discord.ts",
+        "nodes/ClaudeAgentEmail/transport/email.ts",
+        "nodes/ClaudeAgentGmail/transport/gmail.ts",
+        "nodes/ClaudeAgentSlack/transport/slack.ts",
+        "nodes/ClaudeAgentTelegram/transport/telegram.ts"
+      ],
+      "must": {
+        "haveType": "file",
+        "exportFunctions": ["sendApprovalMessage", "sendQuestionMessage"]
+      }
+    }
+  ]
+}
