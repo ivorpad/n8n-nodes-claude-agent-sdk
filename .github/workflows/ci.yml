@@ -10,6 +10,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      KONSISTENT_NO_UPDATE_CHECK: 'true'
+
     steps:
       - uses: actions/checkout@v5
 
@@ -33,6 +36,9 @@ jobs:
 
       - name: Run dead-code checks
         run: 'pnpm run deadcode'
+
+      - name: Validate konsistent config
+        run: 'pnpm run konsistent:validate'
 
       - name: Run structural consistency checks
         run: 'pnpm run konsistent'
